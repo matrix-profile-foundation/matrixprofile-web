@@ -11,7 +11,7 @@
               <b-nav-item>Segments</b-nav-item>
             </b-navbar-nav>
           </b-navbar>
-          <Motifs />
+          <Motifs :store="store"/>
         </b-col>
       </b-row>
     </b-container>
@@ -24,6 +24,13 @@ import Motifs from "./Motifs.vue";
 
 export default {
   name: "MatrixProfile",
+  data() {
+    return {
+      store: {
+        message: "Hello!"
+      }
+    }
+  },
   components: {
     TimeSeries,
     Motifs
