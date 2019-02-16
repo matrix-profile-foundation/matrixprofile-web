@@ -1,6 +1,6 @@
 <template>
-  <div class="motifs">
-    <div v-for="(data, index) in store.motifOptions" :key="index">
+  <div class="segments">
+    <div v-for="(data, index) in store.segmentOptions" :key="index">
       <highcharts :options="data.chartOptions"></highcharts>
     </div>
   </div>
@@ -8,7 +8,7 @@
 
 <script>
 export default {
-  name: "Motifs",
+  name: "Segments",
   props: {
     store: {}
   }

@@ -1,6 +1,6 @@
 <template>
-  <div class="motifs">
-    <div v-for="(data, index) in store.motifOptions" :key="index">
+  <div class="discords">
+    <div v-for="(data, index) in store.discordOptions" :key="index">
       <highcharts :options="data.chartOptions"></highcharts>
     </div>
   </div>
@@ -8,7 +8,7 @@
 
 <script>
 export default {
-  name: "Motifs",
+  name: "Discords",
   props: {
     store: {}
   }
@@ -16,9 +16,4 @@ export default {
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
-<style scoped>
-.motifs {
-  overflow-y: scroll;
-  height: 500px;
-}
-</style>
+<style scoped></style>

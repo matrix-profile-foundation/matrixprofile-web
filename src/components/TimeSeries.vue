@@ -1,11 +1,6 @@
 <template>
   <div>
     <highcharts :options="chartOptions"></highcharts>
-    <b-input-group prepend="m">
-      <b-form-input type="number" placeholder="subsequence length">
-      </b-form-input>
-      <b-input-group-append><b-btn>Calculate</b-btn></b-input-group-append>
-    </b-input-group>
   </div>
 </template>
 
