@@ -1,6 +1,6 @@
 <template>
   <div>
-    <highcharts :options="store.matrixProfileOption"></highcharts>
+    <highcharts ref="highcharts" :options="store.matrixProfileOption"></highcharts>
   </div>
 </template>
 

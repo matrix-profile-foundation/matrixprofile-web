@@ -1,12 +1,10 @@
 <template>
   <div id="app">
     <b-container fluid>
-      {{ store.tsOption.xAxis[0].min }}
-      {{ store.tsOption.xAxis[0].max }}
       <b-row>
         <b-col cols="7">
-          <TimeSeries :store="store" />
-          <MatrixProfile :store="store" />
+          <TimeSeries ref="timeseries" :store="store" />
+          <MatrixProfile ref="matrixprofile" :store="store" />
           <b-input-group prepend="m">
             <b-form-input v-model="m" type="number" placeholder="subsequence length">
             </b-form-input>
@@ -139,6 +137,7 @@ export default {
             "Time Series",
             result.data
           );
+          //console.log(this.$refs.timeseries.$refs.highchart.chart);
         },
         error => {
           this.err = JSON.stringify(error);
@@ -224,8 +223,18 @@ export default {
                 var startIdx = parseInt(e.point.series.userOptions.id, 10)
                 self.store.tsOption.xAxis[0].plotBands[0].from = startIdx;
                 self.store.tsOption.xAxis[0].plotBands[0].to = startIdx+parseInt(self.getM(), 10);
-                self.store.matrixProfileOption.xAxis[0].plotBands[0].from = startIdx;
-                self.store.matrixProfileOption.xAxis[0].plotBands[0].to = startIdx+parseInt(self.getM(), 10);
+                self.store.tsOption.xAxis[0].plotBands[0].color = LightenDarkenColor(e.point.series.color, 20);
+                var point = {
+                  name: startIdx,
+                  showInLegend: false,
+                  type: "scatter",
+                  marker: { symbol: "circle" },
+                  data: [[startIdx, self.$refs.matrixprofile.$refs.highcharts.chart.series[0].data[startIdx].y]]
+                }
+                if (self.store.matrixProfileOption.series.length > 1) {
+                  self.store.matrixProfileOption.series.pop()
+                }
+                self.store.matrixProfileOption.series.push(point);
               }
             }
           }
@@ -280,7 +289,24 @@ function createChartOption(title, data) {
   return option;
 }
 
-
+function LightenDarkenColor(col, amt) {
+    var usePound = false;
+    if (col[0] == "#") {
+        col = col.slice(1);
+        usePound = true;
+    }
+    var num = parseInt(col,16);
+    var r = (num >> 16) + amt;
+    if (r > 255) r = 255;
+    else if  (r < 0) r = 0;
+    var b = ((num >> 8) & 0x00FF) + amt;
+    if (b > 255) b = 255;
+    else if  (b < 0) b = 0;
+    var g = (num & 0x0000FF) + amt;
+    if (g > 255) g = 255;
+    else if (g < 0) g = 0;
+    return (usePound?"#":"") + (g | (b << 8) | (r << 16)).toString(16);
+}
 </script>
 
 <style>

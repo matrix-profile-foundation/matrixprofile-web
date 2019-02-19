@@ -1,6 +1,6 @@
 <template>
   <div>
-    <highcharts ref="timeseries" :options="store.tsOption"></highcharts>
+    <highcharts ref="highchart" :options="store.tsOption"></highcharts>
   </div>
 </template>
 
