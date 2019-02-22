@@ -32,7 +32,7 @@
               <b-btn @click="getMotifs">Find</b-btn>
             </b-form>
 
-            <Motifs :store="store" />
+            <Motifs ref="motifs" :store="store" />
           </div>
           <div v-if="discordsActive">
             <Discords :store="store" />
@@ -63,7 +63,7 @@ export default {
       segmentsActive: false,
       ts: [],
       n: 0,
-      m: 128,
+      m: 5000,
       k: 3,
       r: 1,
       motifs: [],
@@ -198,10 +198,44 @@ export default {
       var self = this;
       var option = {
         chart: {
-          height: "200px",
+          height: "300px",
           events: {
             click: function(e) {
-              console.log(e);
+              var motifNum = e.path[3].id;
+              var motifs = self.$refs.motifs.$refs;
+              var series = motifs[motifNum][0].chart.series;
+              self.store.tsOption.xAxis[0].plotBands.length = 0;
+
+              var points = {
+                name: startIdx,
+                showInLegend: false,
+                type: "scatter",
+                lineWidth: 0,
+                marker: {
+                  symbol: "circle",
+                  fillColor: "#FF0000",
+                  lineWidth: 1
+                },
+                data: []
+              }
+
+              for (var i in series) {
+                var startIdx = series[i].name;
+                self.store.tsOption.xAxis[0].plotBands.push({
+                  from: startIdx,
+                  to: startIdx+parseInt(self.getM(), 10),
+                  color: "#FCFFC5"
+                })
+
+                points.data.push([startIdx, self.$refs.matrixprofile.$refs.highcharts.chart.series[0].data[startIdx].y])
+
+             }
+
+              if (self.store.matrixProfileOption.series.length > 1) {
+                self.store.matrixProfileOption.series.pop()
+              }
+              self.store.matrixProfileOption.series.push(points);
+
             }
           }
         },
@@ -214,37 +248,47 @@ export default {
             labels: { enabled: false }
           }
         ],
-        plotOptions: {
-          series: {
-            lineWidth: 1,
-            animation: false,
-            events: {
-              click: function(e) {
-                var startIdx = parseInt(e.point.series.userOptions.id, 10)
-                self.store.tsOption.xAxis[0].plotBands[0].from = startIdx;
-                self.store.tsOption.xAxis[0].plotBands[0].to = startIdx+parseInt(self.getM(), 10);
-                self.store.tsOption.xAxis[0].plotBands[0].color = LightenDarkenColor(e.point.series.color, 20);
-                var point = {
-                  name: startIdx,
-                  showInLegend: false,
-                  type: "scatter",
-                  marker: { symbol: "circle" },
-                  data: [[startIdx, self.$refs.matrixprofile.$refs.highcharts.chart.series[0].data[startIdx].y]]
-                }
-                if (self.store.matrixProfileOption.series.length > 1) {
-                  self.store.matrixProfileOption.series.pop()
-                }
-                self.store.matrixProfileOption.series.push(point);
+        series: []
+      };
+
+      option.plotOptions = {
+        stickyTracking: false,
+        series: {
+          lineWidth: 1,
+          animation: false,
+          events: {
+            click: function(e) {
+              self.store.tsOption.xAxis[0].plotBands.length = 0;
+              var startIdx = parseInt(e.point.series.userOptions.id, 10)
+              self.store.tsOption.xAxis[0].plotBands.push({
+                from: startIdx,
+                to: startIdx+parseInt(self.getM(), 10),
+                color: LightenDarkenColor(e.point.series.color, 20)
+              })
+
+              var point = {
+                name: startIdx,
+                showInLegend: false,
+                type: "scatter",
+                marker: {
+                  symbol: "circle",
+                  fillColor: "#FF0000",
+                  lineWidth: 1
+                },
+                data: [[startIdx, self.$refs.matrixprofile.$refs.highcharts.chart.series[0].data[startIdx].y]]
               }
+              if (self.store.matrixProfileOption.series.length > 1) {
+                self.store.matrixProfileOption.series.pop()
+              }
+              self.store.matrixProfileOption.series.push(point);
             }
           }
-        },
-        series: []
+        }
       };
 
       for (var i in data) {
         option.series.push({
-          name: "idx_"+startIndices[i],
+          name: startIndices[i],
           id: startIndices[i],
           showInLegend: false,
           data: data[i]
@@ -261,6 +305,7 @@ function createChartOption(title, data) {
     chart: { height: "300", zoomType: "x" },
     title: { text: title },
     plotOptions: {
+      stickyTracking: false,
       series: {
         lineWidth: 1,
         animation: false
@@ -274,14 +319,7 @@ function createChartOption(title, data) {
     ],
     xAxis: [
       {
-        plotBands: [
-          {
-            from: 0,
-            to: 0,
-            color: "#FCFFC5",
-            id: "plot-band-1"
-          }
-        ]
+        plotBands: []
       }
     ]
   };
