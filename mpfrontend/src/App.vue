@@ -21,20 +21,28 @@
           </b-nav>
           <div v-if="motifsActive">
             <b-form inline>
-              <b-input-group class="mb-2 mr-sm-2 mb-sm-0" prepend="top-k">
-                <b-form-input v-model="k" type="number" placeholder="max number of motifs">
+              <b-input-group size="sm" class="mb-2 mr-sm-2 mb-sm-0" prepend="top-k">
+                <b-form-input v-model="kmotifs" type="number" placeholder="max number of motifs">
                 </b-form-input>
               </b-input-group>
-              <b-input-group class="mb-2 mr-sm-2 mb-sm-0" prepend="radius">
+              <b-input-group size="sm" class="mb-2 mr-sm-2 mb-sm-0" prepend="radius">
                 <b-form-input v-model="r" type="number" placeholder="radius">
                 </b-form-input>
               </b-input-group>
-              <b-btn @click="getMotifs">Find</b-btn>
+              <b-btn size="sm" @click="getMotifs">Find</b-btn>
             </b-form>
 
             <Motifs ref="motifs" :store="store" />
           </div>
           <div v-if="discordsActive">
+            <b-form inline>
+              <b-input-group size="sm" class="mb-2 mr-sm-2 mb-sm-0" prepend="top-k">
+                <b-form-input v-model="kdiscords" type="number" placeholder="max number of discords">
+                </b-form-input>
+              </b-input-group>
+              <b-btn size="sm" @click="getDiscords">Find</b-btn>
+            </b-form>
+
             <Discords :store="store" />
           </div>
           <div v-if="segmentsActive">
@@ -63,13 +71,14 @@ export default {
       segmentsActive: false,
       ts: [],
       n: 0,
-      m: 5000,
-      k: 3,
-      r: 1,
+      m: 800,
+      kmotifs: 3,
+      r: 2,
       motifs: [],
+      kdiscords: 3,
+      discords: [],
       err: "",
       store: {
-        message: "Hello!",
         tsOption: createChartOption("Time Series", []),
         matrixProfileOption: createChartOption("Matrix Profile", []),
         motifOptions: [],
@@ -120,12 +129,12 @@ export default {
           this.store.matrixProfileOption = option;
 
           this.getMotifs();
+          this.getDiscords();
         },
         error => {
           this.err = JSON.stringify(error);
         }
       );
-      this.getDiscords();
       this.getSegments();
     },
     getTimeSeries: function() {
@@ -147,9 +156,9 @@ export default {
     getMotifs: function() {
       axios.get("http://localhost:8081/topkmotifs", {
         params: {
-          k: this.k,
-          r: this.r,
-          m: this.m
+          m: this.m,
+          k: this.kmotifs,
+          r: this.r
         }
       }).then(
         result => {
@@ -162,9 +171,9 @@ export default {
             if (motifGroup.length != 0) {
               options.push({
                 chartOptions: this.createMotifChartOption(
-                  "motif "+i+": "+this.motifs.Groups[i].MinDist.toFixed(2),
+                  "motif "+i+": "+this.motifs.groups[i].MinDist.toFixed(2),
                   motifGroup.slice(0, Math.min(10, motifGroup.length)),
-                  this.motifs.Groups[i].Idx.slice(0, Math.min(10, motifGroup.length))
+                  this.motifs.groups[i].Idx.slice(0, Math.min(10, motifGroup.length))
                 )
               })
             } else {
@@ -180,10 +189,33 @@ export default {
       );
     },
     getDiscords: function() {
-      // likely makes an api call to find motifs
-      this.store.discordOptions = [
-        { chartOptions: this.createMotifChartOption("discord 1", [[3, 2, 1]], [1]) }
-      ];
+      axios.get("http://localhost:8081/topkdiscords", {
+        params: {
+          m: this.m,
+          k: this.kdiscords
+        }
+      }).then(
+         result => {
+          this.discords = result.data;
+
+          var options = [];
+
+          for (var i in this.discords.series) {
+            options.push({
+              chartOptions: this.createMotifChartOption(
+                "discord "+i,
+                [this.discords.series[i]],
+                [this.discords.groups[i]]
+              )
+            })
+          }
+
+          this.store.discordOptions = options;
+        },
+        error => {
+          this.err = JSON.stringify(error);
+        }
+      );
     },
     getSegments: function() {
       // likely makes an api call to find motifs
