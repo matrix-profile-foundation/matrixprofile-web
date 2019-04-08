@@ -1,13 +1,17 @@
 package main
 
 import (
+	"encoding/gob"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
 
 	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,90 +29,139 @@ type Discord struct {
 	Series [][]float64 `json:"series"`
 }
 
-func main() {
+func fetchData() (Data, error) {
 	jsonFile, err := os.Open("./penguin_data.json")
 	if err != nil {
-		panic(err)
+		return Data{}, err
 	}
 
 	byteValue, err := ioutil.ReadAll(jsonFile)
 	if err != nil {
-		panic(err)
+		return Data{}, err
 	}
 
 	var data Data
-	var mp *matrixprofile.MatrixProfile
 	if err := json.Unmarshal(byteValue, &data); err != nil {
+		return Data{}, err
+	}
+
+	data.Data = smooth(data.Data, 21)[:24*60*7]
+
+	return data, nil
+}
+
+func main() {
+	r := gin.Default()
+	store, err := redis.NewStore(10, "tcp", "localhost:6379", "", []byte("secret"))
+	if err != nil {
 		panic(err)
 	}
 
-	data.Data = smooth(data.Data, 21)
+	err, rs := redis.GetRedisStore(store)
+	if err != nil {
+		panic(err)
+	}
+	rs.SetMaxLength(1024 * 1024)
 
-	r := gin.Default()
-
+	r.Use(sessions.Sessions("mysession", store))
 	r.Use(cors.Default())
 
+	gob.RegisterName("github.com/aouyang1/go-matrixprofile/matrixprofile.MatrixProfile", matrixprofile.MatrixProfile{})
+
 	r.GET("/data", func(c *gin.Context) {
+		data, err := fetchData()
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
+
 		c.Header("Content-Type", "application/json")
+		c.Header("Access-Control-Allow-Origin", "http://localhost:8080")
+		c.Header("Access-Control-Allow-Credentials", "true")
+		c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
 		c.JSON(200, data.Data)
 	})
 
 	r.GET("/calculate", func(c *gin.Context) {
+		session := sessions.Default(c)
+		c.Header("Access-Control-Allow-Origin", "http://localhost:8080")
+		c.Header("Access-Control-Allow-Credentials", "true")
+		c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+
 		mstr := c.Query("m")
 		m, err := strconv.Atoi(mstr)
 		if err != nil {
-			c.JSON(500, gin.H{
-				"error": err,
-			})
+			c.JSON(500, gin.H{"error": err})
+			return
 		}
 
-		mp, err = matrixprofile.New(data.Data, nil, m)
+		data, err := fetchData()
 		if err != nil {
-			c.JSON(500, gin.H{
-				"error": err,
-			})
+			c.JSON(500, gin.H{"error": err})
+			return
 		}
 
-		if err = mp.Stomp(2); err != nil {
-			c.JSON(500, gin.H{
-				"error": err,
-			})
+		mp, err := matrixprofile.New(data.Data, nil, m)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err})
+			return
 		}
+		if err = mp.Stomp(2); err != nil {
+			c.JSON(500, gin.H{"error": err})
+			return
+		}
+
+		session.Set("mp", &mp)
+		session.Set("user", "aouyang")
+		session.Save()
 
 		c.JSON(200, mp.MP)
 	})
 
 	r.GET("/topkmotifs", func(c *gin.Context) {
-		mstr := c.Query("m")
+		session := sessions.Default(c)
+		c.Header("Access-Control-Allow-Origin", "http://localhost:8080")
+		c.Header("Access-Control-Allow-Credentials", "true")
+		c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+
 		kstr := c.Query("k")
 		rstr := c.Query("r")
 
-		m, err := strconv.Atoi(mstr)
-		if err != nil {
-			c.JSON(500, gin.H{
-				"error": err,
-			})
-		}
-
 		k, err := strconv.Atoi(kstr)
 		if err != nil {
-			c.JSON(500, gin.H{
-				"error": err,
-			})
+			fmt.Println(err)
+			c.JSON(500, gin.H{"error": err})
+			return
 		}
 
 		r, err := strconv.ParseFloat(rstr, 64)
 		if err != nil {
-			c.JSON(500, gin.H{
-				"error": err,
-			})
+			fmt.Println(err)
+			c.JSON(500, gin.H{"error": err})
+			return
 		}
 
+		v := session.Get("mp")
+		fmt.Println(session.Get("user").(string))
+
+		var mp matrixprofile.MatrixProfile
+		if v == nil {
+			fmt.Println(err)
+			c.JSON(500, gin.H{
+				"error": "matrix profile was never initialized to compute motifs",
+			})
+			return
+		} else {
+			mp = v.(matrixprofile.MatrixProfile)
+		}
+		out, _ := json.MarshalIndent(mp, "", "  ")
+		fmt.Println(string(out))
+		fmt.Printf("%d, %d\n", len(mp.A), len(mp.B))
 		motifGroups, err := mp.TopKMotifs(k, r)
 		if err != nil {
-			c.JSON(500, gin.H{
-				"error": err,
-			})
+			fmt.Println(err)
+			c.JSON(500, gin.H{"error": err})
+			return
 		}
 
 		var motif Motif
@@ -117,48 +170,55 @@ func main() {
 		for i, g := range motif.Groups {
 			motif.Series[i] = make([][]float64, len(g.Idx))
 			for j, midx := range g.Idx {
-				motif.Series[i][j], err = matrixprofile.ZNormalize(data.Data[midx : midx+m])
+				motif.Series[i][j], err = matrixprofile.ZNormalize(mp.A[midx : midx+mp.M])
 				if err != nil {
-					c.JSON(500, gin.H{
-						"error": err,
-					})
+					fmt.Println(err)
+					c.JSON(500, gin.H{"error": err})
+					return
 				}
 			}
 		}
+
 		c.JSON(200, motif)
 	})
 
 	r.GET("/topkdiscords", func(c *gin.Context) {
-		mstr := c.Query("m")
-		kstr := c.Query("k")
+		session := sessions.Default(c)
+		c.Header("Access-Control-Allow-Origin", "http://localhost:8080")
+		c.Header("Access-Control-Allow-Credentials", "true")
+		c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
 
-		m, err := strconv.Atoi(mstr)
-		if err != nil {
-			c.JSON(500, gin.H{
-				"error": err,
-			})
-		}
+		kstr := c.Query("k")
 
 		k, err := strconv.Atoi(kstr)
 		if err != nil {
-			c.JSON(500, gin.H{
-				"error": err,
-			})
+			c.JSON(500, gin.H{"error": err})
+			return
 		}
 
-		discords := mp.TopKDiscords(k, m/2)
+		v := session.Get("mp")
+		var mp matrixprofile.MatrixProfile
+		if v == nil {
+			c.JSON(500, gin.H{
+				"error": "matrix profile was never initialized to compute discords",
+			})
+			return
+		} else {
+			mp = v.(matrixprofile.MatrixProfile)
+		}
+		discords := mp.TopKDiscords(k, mp.M/2)
 
 		var discord Discord
 		discord.Groups = discords
 		discord.Series = make([][]float64, len(discords))
 		for i, didx := range discord.Groups {
-			discord.Series[i], err = matrixprofile.ZNormalize(data.Data[didx : didx+m])
+			discord.Series[i], err = matrixprofile.ZNormalize(mp.A[didx : didx+mp.M])
 			if err != nil {
-				c.JSON(500, gin.H{
-					"error": err,
-				})
+				c.JSON(500, gin.H{"error": err})
+				return
 			}
 		}
+
 		c.JSON(200, discord)
 	})
 

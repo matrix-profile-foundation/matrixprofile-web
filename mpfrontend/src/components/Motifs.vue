@@ -1,7 +1,11 @@
 <template>
   <div class="motifs">
     <div v-for="(data, index) in store.motifOptions" :key="index">
-      <highcharts :id="index" :ref="index" :options="data.chartOptions"></highcharts>
+      <highcharts
+        :id="index"
+        :ref="index"
+        :options="data.chartOptions"
+      ></highcharts>
     </div>
   </div>
 </template>
