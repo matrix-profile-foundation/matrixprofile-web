@@ -52,7 +52,13 @@ func fetchData() (Data, error) {
 
 func main() {
 	r := gin.Default()
-	store, err := redis.NewStore(10, "tcp", "localhost:6379", "", []byte("secret"))
+
+	var redis_url string
+	if redis_url = os.Getenv("REDIS_URL"); redis_url == "" {
+		redis_url = "localhost:6379"
+	}
+
+	store, err := redis.NewStore(10, "tcp", redis_url, "", []byte("secret"))
 	if err != nil {
 		panic(err)
 	}
@@ -222,7 +228,11 @@ func main() {
 		c.JSON(200, discord)
 	})
 
-	r.Run(":8081")
+	var port string
+	if port = os.Getenv("PORT"); port == "" {
+		port = "8081"
+	}
+	r.Run(":" + port)
 }
 
 func smooth(data []float64, m int) []float64 {

@@ -1,0 +1,20 @@
+version: '3'
+services:
+  mpfrontend:
+    depends_on:
+      - mpserver
+    build: ./mpfrontend
+    ports:
+      - "8080:8080"
+  mpserver:
+    depends_on:
+      - redis
+    build: ./mpserver
+    environment:
+      - REDIS_URL=redis:6379
+      - PORT=8081
+      - GIN_MODE=release
+    ports:
+      - "8081:8081"
+  redis:
+    image: "redis:alpine"
