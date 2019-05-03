@@ -139,7 +139,7 @@ export default {
       this.segmentsActive = true;
     },
     getTimeSeries: function() {
-      axios.get("http://localhost:8081/data", {
+      axios.get(process.env.VUE_APP_MPSERVER_URL+"/data", {
         withCredentials: true
       }).then(
         result => {
@@ -154,7 +154,7 @@ export default {
     },
     calculateMP: function() {
       axios
-        .get("http://localhost:8081/calculate", {
+        .get(process.env.VUE_APP_MPSERVER_URL+"/calculate", {
           withCredentials: true,
           params: { m: this.m }
         })
@@ -176,7 +176,7 @@ export default {
     },
     getMotifs: function() {
       axios
-        .get("http://localhost:8081/topkmotifs", {
+        .get(process.env.VUE_APP_MPSERVER_URL+"/topkmotifs", {
           withCredentials: true,
           params: {
             m: this.m,
@@ -220,7 +220,7 @@ export default {
     },
     getDiscords: function() {
       axios
-        .get("http://localhost:8081/topkdiscords", {
+        .get(process.env.VUE_APP_MPSERVER_URL+"/topkdiscords", {
           withCredentials: true,
           params: {
             m: this.m,
