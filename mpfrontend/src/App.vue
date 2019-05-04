@@ -179,7 +179,6 @@ export default {
         .get(process.env.VUE_APP_MPSERVER_URL+"/topkmotifs", {
           withCredentials: true,
           params: {
-            m: this.m,
             k: this.kmotifs,
             r: this.r
           }
@@ -223,7 +222,6 @@ export default {
         .get(process.env.VUE_APP_MPSERVER_URL+"/topkdiscords", {
           withCredentials: true,
           params: {
-            m: this.m,
             k: this.kdiscords
           }
         })
