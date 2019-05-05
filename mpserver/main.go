@@ -12,6 +12,8 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
@@ -19,6 +21,13 @@ var (
 	maxRedisBlobSize = 1024 * 1024
 	retentionPeriod  = 5 * 60
 	redisURL         = "localhost:6379"
+
+	requestCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "http_requests_total",
+		},
+		[]string{"method", "endpoint", "code"},
+	)
 )
 
 func main() {
@@ -41,6 +50,7 @@ func main() {
 		v1.GET("/topkmotifs", topKMotifs)
 		v1.GET("/topkdiscords", topKDiscords)
 	}
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	var port string
 	if port = os.Getenv("PORT"); port == "" {
@@ -127,12 +137,14 @@ func smooth(data []float64, m int) []float64 {
 func getData(c *gin.Context) {
 	data, err := fetchData()
 	if err != nil {
+		requestCounter.WithLabelValues("GET", "/api/v1/data", "500").Add(1)
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.Header("Content-Type", "application/json")
 	buildCORSHeaders(c)
+	requestCounter.WithLabelValues("GET", "/api/v1/data", "200").Add(1)
 	c.JSON(200, data.Data)
 }
 
@@ -143,22 +155,26 @@ func calculateMP(c *gin.Context) {
 	mstr := c.Query("m")
 	m, err := strconv.Atoi(mstr)
 	if err != nil {
+		requestCounter.WithLabelValues("GET", "/api/v1/calculate", "500").Add(1)
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
 
 	data, err := fetchData()
 	if err != nil {
+		requestCounter.WithLabelValues("GET", "/api/v1/calculate", "500").Add(1)
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
 
 	mp, err := matrixprofile.New(data.Data, nil, m)
 	if err != nil {
+		requestCounter.WithLabelValues("GET", "/api/v1/calculate", "500").Add(1)
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
 	if err = mp.Stomp(mpConcurrency); err != nil {
+		requestCounter.WithLabelValues("GET", "/api/v1/calculate", "500").Add(1)
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
@@ -166,6 +182,7 @@ func calculateMP(c *gin.Context) {
 	session.Set("mp", &mp)
 	session.Save()
 
+	requestCounter.WithLabelValues("GET", "/api/v1/calculate", "200").Add(1)
 	c.JSON(200, mp.MP)
 }
 
@@ -183,12 +200,14 @@ func topKMotifs(c *gin.Context) {
 
 	k, err := strconv.Atoi(kstr)
 	if err != nil {
+		requestCounter.WithLabelValues("GET", "/api/v1/topkmotifs", "500").Add(1)
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
 
 	r, err := strconv.ParseFloat(rstr, 64)
 	if err != nil {
+		requestCounter.WithLabelValues("GET", "/api/v1/topkmotifs", "500").Add(1)
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
@@ -198,6 +217,7 @@ func topKMotifs(c *gin.Context) {
 	var mp matrixprofile.MatrixProfile
 	if v == nil {
 		// either the cache expired or this was called directly
+		requestCounter.WithLabelValues("GET", "/api/v1/topkmotifs", "500").Add(1)
 		c.JSON(500, gin.H{
 			"error": "matrix profile is not initialized to compute motifs",
 		})
@@ -207,6 +227,7 @@ func topKMotifs(c *gin.Context) {
 	}
 	motifGroups, err := mp.TopKMotifs(k, r)
 	if err != nil {
+		requestCounter.WithLabelValues("GET", "/api/v1/topkmotifs", "500").Add(1)
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
@@ -219,12 +240,14 @@ func topKMotifs(c *gin.Context) {
 		for j, midx := range g.Idx {
 			motif.Series[i][j], err = matrixprofile.ZNormalize(mp.A[midx : midx+mp.M])
 			if err != nil {
+				requestCounter.WithLabelValues("GET", "/api/v1/topkmotifs", "500").Add(1)
 				c.JSON(500, gin.H{"error": err})
 				return
 			}
 		}
 	}
 
+	requestCounter.WithLabelValues("GET", "/api/v1/topkmotifs", "200").Add(1)
 	c.JSON(200, motif)
 }
 
@@ -241,6 +264,7 @@ func topKDiscords(c *gin.Context) {
 
 	k, err := strconv.Atoi(kstr)
 	if err != nil {
+		requestCounter.WithLabelValues("GET", "/api/v1/topkdiscords", "500").Add(1)
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
@@ -248,6 +272,7 @@ func topKDiscords(c *gin.Context) {
 	v := session.Get("mp")
 	var mp matrixprofile.MatrixProfile
 	if v == nil {
+		requestCounter.WithLabelValues("GET", "/api/v1/topkdiscords", "500").Add(1)
 		c.JSON(500, gin.H{
 			"error": "matrix profile is not initialized to compute discords",
 		})
@@ -263,11 +288,13 @@ func topKDiscords(c *gin.Context) {
 	for i, didx := range discord.Groups {
 		discord.Series[i], err = matrixprofile.ZNormalize(mp.A[didx : didx+mp.M])
 		if err != nil {
+			requestCounter.WithLabelValues("GET", "/api/v1/topkdiscords", "500").Add(1)
 			c.JSON(500, gin.H{"error": err})
 			return
 		}
 	}
 
+	requestCounter.WithLabelValues("GET", "/api/v1/topkdiscords", "200").Add(1)
 	c.JSON(200, discord)
 }
 
