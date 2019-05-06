@@ -11,13 +11,16 @@ usage:
 build: build-mpserver build-mpfrontend
 
 build-mpserver:
-	docker build -t aouyang1/mpserver mpserver/
+	docker build --no-cache -t aouyang1/mpserver mpserver/
 
 build-mpfrontend:
-	docker build -t aouyang1/mpfrontend -f mpfrontend/Dockerfile_prod mpfrontend/
+	docker build --no-cache -t aouyang1/mpfrontend -f mpfrontend/Dockerfile_prod mpfrontend/
+
+build-mpfrontend-dev:
+	docker build --no-cache -t aouyang1/mpfrontend mpfrontend/
 
 deploy: undeploy
-	docker-compose up -d
+	docker-compose up --build -d
 
 undeploy:
 	docker-compose down
