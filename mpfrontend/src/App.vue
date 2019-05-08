@@ -22,7 +22,7 @@
           <b-nav tabs>
             <b-nav-item @click="enableMotifs">Motifs</b-nav-item>
             <b-nav-item @click="enableDiscords">Discords</b-nav-item>
-            <b-nav-item @click="enableSegments">Segments</b-nav-item>
+            <b-nav-item @click="enableAVs">Annotation Vectors</b-nav-item>
           </b-nav>
           <div v-if="motifsActive">
             <b-form inline>
@@ -70,8 +70,11 @@
 
             <Discords :store="store" />
           </div>
-          <div v-if="segmentsActive">
-            <Segments :store="store" />
+          <div v-if="avsActive">
+            <b-form inline>
+              <b-form-select v-model="selectedav" :options="avoptions" @change="avChange"></b-form-select>
+              <b-btn size="sm" @click="applyAV">Apply</b-btn>
+            </b-form>
           </div>
         </b-col>
       </b-row>
@@ -83,7 +86,6 @@
 import TimeSeries from "./components/TimeSeries.vue";
 import Motifs from "./components/Motifs.vue";
 import Discords from "./components/Discords.vue";
-import Segments from "./components/Segments.vue";
 import MatrixProfile from "./components/MatrixProfile.vue";
 import axios from "axios";
 
@@ -93,7 +95,7 @@ export default {
     return {
       motifsActive: true,
       discordsActive: false,
-      segmentsActive: false,
+      avsActive: false,
       ts: [],
       n: 0,
       m: 30,
@@ -102,13 +104,27 @@ export default {
       motifs: [],
       kdiscords: 3,
       discords: [],
+      selectedav: 'default',
+      avoptions: [
+        { value: 'default', text: 'Default' },
+        { value: 'complexity', text: 'Complexity' },
+        { value: 'meanstd', text: 'Mean Standard Deviation' },
+        { value: 'clipping', text: 'Clipping' }
+      ],
       err: "",
       store: {
-        tsOption: createChartOption("Time Series", []),
-        matrixProfileOption: createChartOption("Matrix Profile", []),
+        tsOption: createChartOption(
+          "Time Series",
+          [],
+          ""
+        ),
+        matrixProfileOption: createChartOption(
+          "Matrix Profile",
+          [],
+          ""
+        ),
         motifOptions: [],
-        discordOptions: [],
-        segmentOptions: []
+        discordOptions: []
       }
     };
   },
@@ -116,7 +132,6 @@ export default {
     TimeSeries,
     Motifs,
     Discords,
-    Segments,
     MatrixProfile
   },
   created: function() {
@@ -126,41 +141,50 @@ export default {
     enableMotifs: function() {
       this.motifsActive = true;
       this.discordsActive = false;
-      this.segmentsActive = false;
+      this.avsActive = false;
     },
     enableDiscords: function() {
       this.motifsActive = false;
       this.discordsActive = true;
-      this.segmentsActive = false;
+      this.avsActive = false;
     },
-    enableSegments: function() {
+    enableAVs: function() {
       this.motifsActive = false;
       this.discordsActive = false;
-      this.segmentsActive = true;
+      this.avsActive = true;
     },
     getTimeSeries: function() {
-      axios.get(process.env.VUE_APP_MPSERVER_URL+"/data", {
-        withCredentials: true
-      }).then(
-        result => {
-          this.ts = result.data;
-          this.n = result.data.length;
-          this.store.tsOption = createChartOption("Time Series", result.data);
-        },
-        error => {
-          this.err = JSON.stringify(error.response.data.error);
-        }
-      );
+      axios
+        .get(process.env.VUE_APP_MPSERVER_URL + "/data", {
+          withCredentials: true
+        }).then(
+          result => {
+            this.ts = result.data;
+            this.n = result.data.length;
+            this.store.tsOption = createChartOption(
+              "Time Series",
+              result.data,
+              "ts"
+            );
+          },
+          error => {
+            this.err = JSON.stringify(error.response.data.error);
+          }
+        );
     },
     calculateMP: function() {
       axios
-        .get(process.env.VUE_APP_MPSERVER_URL+"/calculate", {
+        .get(process.env.VUE_APP_MPSERVER_URL + "/calculate", {
           withCredentials: true,
           params: { m: this.m }
         })
         .then(
           result => {
-            var option = createChartOption("Matrix Profile", result.data);
+            var option = createChartOption(
+              "Matrix Profile",
+              result.data,
+              "distance score"
+            );
 
             option.xAxis[0].max = this.n;
             this.store.matrixProfileOption = option;
@@ -172,11 +196,10 @@ export default {
             this.err = JSON.stringify(error.response.data.error);
           }
         );
-      this.getSegments();
     },
     getMotifs: function() {
       axios
-        .get(process.env.VUE_APP_MPSERVER_URL+"/topkmotifs", {
+        .get(process.env.VUE_APP_MPSERVER_URL + "/topkmotifs", {
           withCredentials: true,
           params: {
             k: this.kmotifs,
@@ -219,7 +242,7 @@ export default {
     },
     getDiscords: function() {
       axios
-        .get(process.env.VUE_APP_MPSERVER_URL+"/topkdiscords", {
+        .get(process.env.VUE_APP_MPSERVER_URL + "/topkdiscords", {
           withCredentials: true,
           params: {
             k: this.kdiscords
@@ -248,17 +271,28 @@ export default {
           }
         );
     },
-    getSegments: function() {
-      // likely makes an api call to find motifs
-      this.store.segmentOptions = [
-        {
-          chartOptions: this.createMotifChartOption(
-            "segment 1",
-            [[3, 2, 1]],
-            [1]
-          )
-        }
-      ];
+    avChange: function(av) {
+      axios
+        .get(process.env.VUE_APP_MPSERVER_URL + "/anvector", {
+          withCredentials: true,
+          params: {
+            name: av
+          }
+        })
+        .then(
+          result => {
+            this.store.tsOption = setAnnotationVector(
+              this.store.tsOption,
+              result.data.values
+            );
+          },
+          error => {
+            this.err = JSON.stringify(error.response.data.error);
+          }
+        );
+    },
+    applyAV: function() {
+      console.log("APPLYING!");
     },
     getM: function() {
       return this.m;
@@ -377,7 +411,7 @@ export default {
   }
 };
 
-function createChartOption(title, data) {
+function createChartOption(title, data, name) {
   var option = {
     chart: { height: "300", zoomType: "x" },
     title: { text: title },
@@ -388,12 +422,19 @@ function createChartOption(title, data) {
         animation: false
       }
     },
-    series: [
-      {
-        showInLegend: false,
-        data: data
+    yAxis: [{
+      title: {
+        text: name
       }
-    ],
+    }],
+    tooltip: {
+      shared: true
+    },
+    series: [{
+      name: name,
+      showInLegend: false,
+      data: data
+    }],
     xAxis: [
       {
         plotBands: []
@@ -402,6 +443,36 @@ function createChartOption(title, data) {
   };
 
   return option;
+}
+
+function setAnnotationVector(option, data) {
+  var s = {
+    name: "av",
+    showInLegend: false,
+    data: data,
+    yAxis: 1
+  };
+  var y = {
+    visible: false,
+    max: 1.0,
+    min: 0.0,
+    opposite: true
+  };
+
+  if (option.series.length > 2) {
+    console.log("can't add a secondary line to a chart that has more than 2 lines");
+    return
+  }
+
+  if (option.series.length == 2) {
+    option.series.pop();
+    option.yAxis.pop();
+  }
+
+  option.series.push(s);
+  option.yAxis.push(y);
+
+  return option
 }
 
 function LightenDarkenColor(col, amt) {

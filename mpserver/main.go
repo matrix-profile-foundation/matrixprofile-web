@@ -58,6 +58,7 @@ func main() {
 		v1.GET("/calculate", calculateMP)
 		v1.GET("/topkmotifs", topKMotifs)
 		v1.GET("/topkdiscords", topKDiscords)
+		v1.GET("/anvector", setAnnotationVector)
 	}
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
@@ -292,7 +293,14 @@ func topKDiscords(c *gin.Context) {
 	} else {
 		mp = v.(matrixprofile.MatrixProfile)
 	}
-	discords := mp.TopKDiscords(k, mp.M/2)
+	discords, err := mp.TopKDiscords(k, mp.M/2)
+	if err != nil {
+		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		c.JSON(500, gin.H{
+			"error": "failed to compute discords",
+		})
+		return
+	}
 
 	var discord Discord
 	discord.Groups = discords
@@ -308,6 +316,55 @@ func topKDiscords(c *gin.Context) {
 
 	requestTotal.WithLabelValues("GET", endpoint, "200").Inc()
 	c.JSON(200, discord)
+}
+
+type AnnotationVector struct {
+	Values []float64 `json:"values"`
+}
+
+func setAnnotationVector(c *gin.Context) {
+	endpoint := "/api/v1/anvector"
+	session := sessions.Default(c)
+	buildCORSHeaders(c)
+
+	avname := c.Query("name")
+
+	v := session.Get("mp")
+	var mp matrixprofile.MatrixProfile
+	if v == nil {
+		// matrix profile is not initialized so don't return any data back for the
+		// annotation vector
+		requestTotal.WithLabelValues("GET", endpoint, "200").Inc()
+		c.JSON(200, AnnotationVector{})
+		return
+	} else {
+		mp = v.(matrixprofile.MatrixProfile)
+	}
+
+	switch avname {
+	case "default":
+		mp.AV = matrixprofile.DefaultAV
+	case "complexity":
+		mp.AV = matrixprofile.ComplexityAV
+	case "meanstd":
+		mp.AV = matrixprofile.MeanStdAV
+	case "clipping":
+		mp.AV = matrixprofile.ClippingAV
+	default:
+		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		c.JSON(500, gin.H{"error": "invalid annotation vector name " + avname})
+		return
+	}
+
+	av, err := mp.GetAV()
+	if err != nil {
+		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		c.JSON(500, gin.H{"error": err})
+		return
+	}
+
+	requestTotal.WithLabelValues("GET", endpoint, "200").Inc()
+	c.JSON(200, AnnotationVector{av})
 }
 
 func buildCORSHeaders(c *gin.Context) {
