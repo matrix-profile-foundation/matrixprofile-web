@@ -55,10 +55,10 @@ func main() {
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/data", getData)
-		v1.GET("/calculate", calculateMP)
+		v1.POST("/calculate", calculateMP)
 		v1.GET("/topkmotifs", topKMotifs)
 		v1.GET("/topkdiscords", topKDiscords)
-		v1.GET("/anvector", setAnnotationVector)
+		v1.POST("/anvector", setAnnotationVector)
 	}
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
@@ -147,9 +147,10 @@ func smooth(data []float64, m int) []float64 {
 
 func getData(c *gin.Context) {
 	endpoint := "/api/v1/data"
+	method := "GET"
 	data, err := fetchData()
 	if err != nil {
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -157,37 +158,41 @@ func getData(c *gin.Context) {
 	c.Header("Content-Type", "application/json")
 	buildCORSHeaders(c)
 
-	requestTotal.WithLabelValues("GET", endpoint, "200").Inc()
+	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
 	c.JSON(200, data.Data)
 }
 
 func calculateMP(c *gin.Context) {
 	endpoint := "/api/v1/calculate"
+	method := "POST"
 	session := sessions.Default(c)
 	buildCORSHeaders(c)
 
-	m, err := strconv.Atoi(c.Query("m"))
-	if err != nil {
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+	params := struct {
+		M int `json:"m"`
+	}{}
+	if err := c.BindJSON(&params); err != nil {
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
+	m := params.M
 
 	data, err := fetchData()
 	if err != nil {
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
 
 	mp, err := matrixprofile.New(data.Data, nil, m)
 	if err != nil {
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
 	if err = mp.Stomp(mpConcurrency); err != nil {
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
@@ -196,8 +201,8 @@ func calculateMP(c *gin.Context) {
 	session.Set("mp", &mp)
 	session.Save()
 
-	requestTotal.WithLabelValues("GET", endpoint, "200").Inc()
-	c.JSON(200, mp.MP)
+	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
+	c.JSON(200, gin.H{})
 }
 
 type Motif struct {
@@ -207,19 +212,20 @@ type Motif struct {
 
 func topKMotifs(c *gin.Context) {
 	endpoint := "/api/v1/topkmotifs"
+	method := "GET"
 	session := sessions.Default(c)
 	buildCORSHeaders(c)
 
 	k, err := strconv.Atoi(c.Query("k"))
 	if err != nil {
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
 
 	r, err := strconv.ParseFloat(c.Query("r"), 64)
 	if err != nil {
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
@@ -229,7 +235,7 @@ func topKMotifs(c *gin.Context) {
 	var mp matrixprofile.MatrixProfile
 	if v == nil {
 		// either the cache expired or this was called directly
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{
 			"error": "matrix profile is not initialized to compute motifs",
 		})
@@ -239,7 +245,7 @@ func topKMotifs(c *gin.Context) {
 	}
 	motifGroups, err := mp.TopKMotifs(k, r)
 	if err != nil {
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
@@ -252,14 +258,14 @@ func topKMotifs(c *gin.Context) {
 		for j, midx := range g.Idx {
 			motif.Series[i][j], err = matrixprofile.ZNormalize(mp.A[midx : midx+mp.M])
 			if err != nil {
-				requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+				requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 				c.JSON(500, gin.H{"error": err})
 				return
 			}
 		}
 	}
 
-	requestTotal.WithLabelValues("GET", endpoint, "200").Inc()
+	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
 	c.JSON(200, motif)
 }
 
@@ -270,6 +276,7 @@ type Discord struct {
 
 func topKDiscords(c *gin.Context) {
 	endpoint := "/api/v1/topkdiscords"
+	method := "GET"
 	session := sessions.Default(c)
 	buildCORSHeaders(c)
 
@@ -277,7 +284,7 @@ func topKDiscords(c *gin.Context) {
 
 	k, err := strconv.Atoi(kstr)
 	if err != nil {
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
@@ -285,7 +292,7 @@ func topKDiscords(c *gin.Context) {
 	v := session.Get("mp")
 	var mp matrixprofile.MatrixProfile
 	if v == nil {
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{
 			"error": "matrix profile is not initialized to compute discords",
 		})
@@ -295,7 +302,7 @@ func topKDiscords(c *gin.Context) {
 	}
 	discords, err := mp.TopKDiscords(k, mp.M/2)
 	if err != nil {
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{
 			"error": "failed to compute discords",
 		})
@@ -308,18 +315,19 @@ func topKDiscords(c *gin.Context) {
 	for i, didx := range discord.Groups {
 		discord.Series[i], err = matrixprofile.ZNormalize(mp.A[didx : didx+mp.M])
 		if err != nil {
-			requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+			requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 			c.JSON(500, gin.H{"error": err})
 			return
 		}
 	}
 
-	requestTotal.WithLabelValues("GET", endpoint, "200").Inc()
+	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
 	c.JSON(200, discord)
 }
 
 type AnnotationVector struct {
 	Values []float64 `json:"values"`
+	NewMP  []float64 `json:"newmp"`
 }
 
 func setAnnotationVector(c *gin.Context) {
@@ -327,14 +335,22 @@ func setAnnotationVector(c *gin.Context) {
 	session := sessions.Default(c)
 	buildCORSHeaders(c)
 
-	avname := c.Query("name")
+	params := struct {
+		Name string `json:"name"`
+	}{}
+	if err := c.BindJSON(&params); err != nil {
+		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
+		c.JSON(500, AnnotationVector{})
+		return
+	}
+	avname := params.Name
 
 	v := session.Get("mp")
 	var mp matrixprofile.MatrixProfile
 	if v == nil {
 		// matrix profile is not initialized so don't return any data back for the
 		// annotation vector
-		requestTotal.WithLabelValues("GET", endpoint, "200").Inc()
+		requestTotal.WithLabelValues("POST", endpoint, "200").Inc()
 		c.JSON(200, AnnotationVector{})
 		return
 	} else {
@@ -351,24 +367,36 @@ func setAnnotationVector(c *gin.Context) {
 	case "clipping":
 		mp.AV = matrixprofile.ClippingAV
 	default:
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": "invalid annotation vector name " + avname})
 		return
 	}
 
+	// cache matrix profile for current session
+	session.Set("mp", &mp)
+	session.Save()
+
 	av, err := mp.GetAV()
 	if err != nil {
-		requestTotal.WithLabelValues("GET", endpoint, "500").Inc()
+		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
 
-	requestTotal.WithLabelValues("GET", endpoint, "200").Inc()
-	c.JSON(200, AnnotationVector{av})
+	newMP, err := mp.ApplyAV(av)
+	if err != nil {
+		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
+		c.JSON(500, gin.H{"error": err})
+		return
+	}
+
+	requestTotal.WithLabelValues("POST", endpoint, "200").Inc()
+	c.JSON(200, AnnotationVector{Values: av, NewMP: newMP})
 }
 
 func buildCORSHeaders(c *gin.Context) {
 	c.Header("Access-Control-Allow-Origin", "http://localhost:8080")
 	c.Header("Access-Control-Allow-Credentials", "true")
 	c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
+	c.Header("Access-Control-Allow-Methods", "GET, POST")
 }

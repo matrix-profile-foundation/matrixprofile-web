@@ -3,12 +3,13 @@
     <h5>{{ err }}</h5>
     <b-container fluid>
       <b-row>
-        <b-col cols="7">
+        <b-col cols="8">
           <TimeSeries ref="timeseries" :store="store" />
+          <AnnotationVector ref="annotationvector" :store="store" />
           <MatrixProfile ref="matrixprofile" :store="store" />
           <b-input-group prepend="m">
             <b-form-input
-              v-model="m"
+              v-model.number="m"
               type="number"
               placeholder="subsequence length"
             >
@@ -18,7 +19,7 @@
             </b-input-group-append>
           </b-input-group>
         </b-col>
-        <b-col cols="5">
+        <b-col cols="4">
           <b-nav tabs>
             <b-nav-item @click="enableMotifs">Motifs</b-nav-item>
             <b-nav-item @click="enableDiscords">Discords</b-nav-item>
@@ -73,7 +74,6 @@
           <div v-if="avsActive">
             <b-form inline>
               <b-form-select v-model="selectedav" :options="avoptions" @change="avChange"></b-form-select>
-              <b-btn size="sm" @click="applyAV">Apply</b-btn>
             </b-form>
           </div>
         </b-col>
@@ -87,6 +87,7 @@ import TimeSeries from "./components/TimeSeries.vue";
 import Motifs from "./components/Motifs.vue";
 import Discords from "./components/Discords.vue";
 import MatrixProfile from "./components/MatrixProfile.vue";
+import AnnotationVector from "./components/AnnotationVector.vue";
 import axios from "axios";
 
 export default {
@@ -104,25 +105,18 @@ export default {
       motifs: [],
       kdiscords: 3,
       discords: [],
-      selectedav: 'default',
+      selectedav: "default",
       avoptions: [
-        { value: 'default', text: 'Default' },
-        { value: 'complexity', text: 'Complexity' },
-        { value: 'meanstd', text: 'Mean Standard Deviation' },
-        { value: 'clipping', text: 'Clipping' }
+        { value: "default", text: "Default" },
+        { value: "complexity", text: "Complexity" },
+        { value: "meanstd", text: "Mean Standard Deviation" },
+        { value: "clipping", text: "Clipping" }
       ],
       err: "",
       store: {
-        tsOption: createChartOption(
-          "Time Series",
-          [],
-          ""
-        ),
-        matrixProfileOption: createChartOption(
-          "Matrix Profile",
-          [],
-          ""
-        ),
+        tsOption: genTSOption([]),
+        annotationVectorOption: genAVOption([]),
+        matrixProfileOption: genMPOption([]),
         motifOptions: [],
         discordOptions: []
       }
@@ -132,7 +126,8 @@ export default {
     TimeSeries,
     Motifs,
     Discords,
-    MatrixProfile
+    MatrixProfile,
+    AnnotationVector
   },
   created: function() {
     this.getTimeSeries();
@@ -161,11 +156,9 @@ export default {
           result => {
             this.ts = result.data;
             this.n = result.data.length;
-            this.store.tsOption = createChartOption(
-              "Time Series",
-              result.data,
-              "ts"
-            );
+            var option = genTSOption(result.data);
+            option.xAxis[0].max = this.n;
+            this.store.tsOption = option;
           },
           error => {
             this.err = JSON.stringify(error.response.data.error);
@@ -174,23 +167,15 @@ export default {
     },
     calculateMP: function() {
       axios
-        .get(process.env.VUE_APP_MPSERVER_URL + "/calculate", {
-          withCredentials: true,
-          params: { m: this.m }
-        })
+        .post(process.env.VUE_APP_MPSERVER_URL + "/calculate",
+          { m: this.m },
+          {
+            withCredentials: true,
+            headers: {"Content-Type": "application/x-www-form-urlencoded"}
+          })
         .then(
           result => {
-            var option = createChartOption(
-              "Matrix Profile",
-              result.data,
-              "distance score"
-            );
-
-            option.xAxis[0].max = this.n;
-            this.store.matrixProfileOption = option;
-
-            this.getMotifs();
-            this.getDiscords();
+            this.getAnnotationVector();
           },
           error => {
             this.err = JSON.stringify(error.response.data.error);
@@ -217,15 +202,9 @@ export default {
               if (motifGroup.length != 0) {
                 options.push({
                   chartOptions: this.createMotifChartOption(
-                    "motif " +
-                      i +
-                      ": " +
-                      this.motifs.groups[i].MinDist.toFixed(2),
+                    "motif " + i + ": " + this.motifs.groups[i].MinDist.toFixed(2),
                     motifGroup.slice(0, Math.min(10, motifGroup.length)),
-                    this.motifs.groups[i].Idx.slice(
-                      0,
-                      Math.min(10, motifGroup.length)
-                    )
+                    this.motifs.groups[i].Idx.slice(0, Math.min(10, motifGroup.length))
                   )
                 });
               } else {
@@ -271,28 +250,33 @@ export default {
           }
         );
     },
+    getAnnotationVector: function() {
+      this.avChange(this.selectedav);
+    },
     avChange: function(av) {
       axios
-        .get(process.env.VUE_APP_MPSERVER_URL + "/anvector", {
-          withCredentials: true,
-          params: {
-            name: av
-          }
-        })
+        .post(process.env.VUE_APP_MPSERVER_URL + "/anvector",
+          {name: av}, {
+            withCredentials: true,
+            headers: {"Content-Type": "application/x-www-form-urlencoded"}
+          })
         .then(
           result => {
-            this.store.tsOption = setAnnotationVector(
-              this.store.tsOption,
-              result.data.values
-            );
+            var avoption = genAVOption(result.data.values);
+            avoption.xAxis[0].max = this.n;
+            this.store.annotationVectorOption = avoption;
+
+            var mpoption = genMPOption(result.data.newmp);
+            mpoption.xAxis[0].max = this.n;
+            this.store.matrixProfileOption = mpoption;
+
+            this.getMotifs();
+            this.getDiscords();
           },
           error => {
             this.err = JSON.stringify(error.response.data.error);
           }
         );
-    },
-    applyAV: function() {
-      console.log("APPLYING!");
     },
     getM: function() {
       return this.m;
@@ -301,7 +285,7 @@ export default {
       var self = this;
       var option = {
         chart: {
-          height: "300px",
+          height: "200px",
           events: {
             click: function(e) {
               var motifNum = e.path[3].id;
@@ -411,9 +395,9 @@ export default {
   }
 };
 
-function createChartOption(title, data, name) {
+function createChartOption(title, data, name, height) {
   var option = {
-    chart: { height: "300", zoomType: "x" },
+    chart: { height: height, zoomType: "x" },
     title: { text: title },
     plotOptions: {
       stickyTracking: false,
@@ -422,11 +406,6 @@ function createChartOption(title, data, name) {
         animation: false
       }
     },
-    yAxis: [{
-      title: {
-        text: name
-      }
-    }],
     tooltip: {
       shared: true
     },
@@ -445,34 +424,36 @@ function createChartOption(title, data, name) {
   return option;
 }
 
-function setAnnotationVector(option, data) {
-  var s = {
-    name: "av",
-    showInLegend: false,
-    data: data,
-    yAxis: 1
-  };
-  var y = {
-    visible: false,
+function genTSOption(data) {
+  var option = createChartOption("Time Series", data, "value", 275);
+  option.yAxis = [{
+    title: {text: "value"}
+  }];
+
+  return option;
+}
+
+function genAVOption(data) {
+  var option = createChartOption("Annotation Vector", data, "weight", 100);
+  option.series[0].color = '#006600';
+  option.yAxis = [{
+    title: {text: "weight"},
     max: 1.0,
-    min: 0.0,
-    opposite: true
-  };
+    min: 0.0
+  }];
+  option.title.style = {"fontSize": "12px"};
 
-  if (option.series.length > 2) {
-    console.log("can't add a secondary line to a chart that has more than 2 lines");
-    return
-  }
+  return option;
+}
 
-  if (option.series.length == 2) {
-    option.series.pop();
-    option.yAxis.pop();
-  }
+function genMPOption(data) {
+  var option = createChartOption("Matrix Profile", data, "distance", 275);
+  option.series[0].color = '#000066';
+  option.yAxis = [{
+    title: {text: "distance"}
+  }];
 
-  option.series.push(s);
-  option.yAxis.push(y);
-
-  return option
+  return option;
 }
 
 function LightenDarkenColor(col, amt) {
