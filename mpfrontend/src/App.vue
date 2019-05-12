@@ -9,8 +9,8 @@
 
         <!-- Right aligned nav items -->
         <b-navbar-nav class="ml-auto">
-          <b-nav-item active href="https://www.cs.ucr.edu/~eamonn/MatrixProfile.html">UCR Webpage</b-nav-item>
           <b-nav-item active href="https://github.com/aouyang1/go-matrixprofile"><Octicon :icon="markGithub" /></b-nav-item>
+          <b-nav-item active href="https://www.cs.ucr.edu/~eamonn/MatrixProfile.html">UCR Webpage</b-nav-item>
         </b-navbar-nav>
       </b-collapse>
     </b-navbar>
