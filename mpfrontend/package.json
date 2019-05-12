@@ -14,7 +14,9 @@
     "bootstrap-vue": "^2.0.0-rc.11",
     "highcharts": "^7.0.3",
     "highcharts-vue": "^1.2.0",
-    "jquery": "^3.4.0",
+    "jquery": "^3.4.1",
+    "octicons": "^8.5.0",
+    "octicons-vue": "^0.18.0",
     "popper.js": "^1.14.7",
     "vue": "^2.5.22",
     "vue-cookies": "^1.5.13"

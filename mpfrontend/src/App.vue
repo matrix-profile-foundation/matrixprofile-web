@@ -1,5 +1,19 @@
 <template>
   <div id="app">
+    <b-navbar toggleable="lg" type="dark" variant="info">
+      <b-navbar-brand>Matrix Profiles</b-navbar-brand>
+
+      <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
+
+      <b-collapse id="nav-collapse" is-nav>
+
+        <!-- Right aligned nav items -->
+        <b-navbar-nav class="ml-auto">
+          <b-nav-item active href="https://www.cs.ucr.edu/~eamonn/MatrixProfile.html">UCR Webpage</b-nav-item>
+          <b-nav-item active href="https://github.com/aouyang1/go-matrixprofile"><Octicon :icon="markGithub" /></b-nav-item>
+        </b-navbar-nav>
+      </b-collapse>
+    </b-navbar>
     <h5>{{ err }}</h5>
     <b-container fluid>
       <b-row>
@@ -7,7 +21,9 @@
           <TimeSeries ref="timeseries" :store="store" />
           <AnnotationVector ref="annotationvector" :store="store" />
           <MatrixProfile ref="matrixprofile" :store="store" />
-          <b-input-group prepend="m">
+        </b-col>
+        <b-col cols="4">
+          <b-input-group prepend="m" class="mb-2" >
             <b-form-input
               v-model.number="m"
               type="number"
@@ -18,8 +34,6 @@
               <b-btn @click="calculateMP">Calculate</b-btn>
             </b-input-group-append>
           </b-input-group>
-        </b-col>
-        <b-col cols="4">
           <b-nav tabs>
             <b-nav-item @click="enableMotifs">Motifs</b-nav-item>
             <b-nav-item @click="enableDiscords">Discords</b-nav-item>
@@ -29,7 +43,7 @@
             <b-form inline>
               <b-input-group
                 size="sm"
-                class="mb-2 mr-sm-2 mb-sm-0"
+                class="mb-2 mr-sm-1 mb-sm-0"
                 prepend="top-k"
               >
                 <b-form-input
@@ -41,7 +55,7 @@
               </b-input-group>
               <b-input-group
                 size="sm"
-                class="mb-2 mr-sm-2 mb-sm-0"
+                class="mb-2 mr-sm-1 mb-sm-0"
                 prepend="radius"
               >
                 <b-form-input v-model="r" type="number" placeholder="radius">
@@ -56,7 +70,7 @@
             <b-form inline>
               <b-input-group
                 size="sm"
-                class="mb-2 mr-sm-2 mb-sm-0"
+                class="mb-2 mr-sm-1 mb-sm-0"
                 prepend="top-k"
               >
                 <b-form-input
@@ -88,12 +102,14 @@ import Motifs from "./components/Motifs.vue";
 import Discords from "./components/Discords.vue";
 import MatrixProfile from "./components/MatrixProfile.vue";
 import AnnotationVector from "./components/AnnotationVector.vue";
+import Octicon, { markGithub } from "octicons-vue";
 import axios from "axios";
 
 export default {
   name: "app",
   data() {
     return {
+      markGithub: markGithub,
       motifsActive: true,
       discordsActive: false,
       avsActive: false,
@@ -127,7 +143,8 @@ export default {
     Motifs,
     Discords,
     MatrixProfile,
-    AnnotationVector
+    AnnotationVector,
+    Octicon
   },
   created: function() {
     this.getTimeSeries();
@@ -483,7 +500,6 @@ function LightenDarkenColor(col, amt) {
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
   color: #2c3e50;
-  margin-top: 60px;
   height: 100%;
 }
 </style>
