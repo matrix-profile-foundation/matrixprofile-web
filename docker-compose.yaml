@@ -3,18 +3,22 @@ services:
   mpfrontend:
     depends_on:
       - mpserver
-    build: ./mpfrontend
+    image: "aouyang1/mpfrontend:dev"
     ports:
       - "8080:8080"
+    volumes:
+      - "./mpfrontend:/home/node/app"
   mpserver:
     depends_on:
       - redis
-    build: ./mpserver
+    image: "aouyang1/mpserver:dev"
     environment:
       - REDIS_URL=redis:6379
       - PORT=8081
       - GIN_MODE=release
     ports:
       - "8081:8081"
+    volumes:
+      - "./mpserver:/go/src/app"
   redis:
     image: "redis:alpine"

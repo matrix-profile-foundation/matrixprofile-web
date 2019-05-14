@@ -6,11 +6,19 @@
       <b-navbar-toggle target="nav-collapse"></b-navbar-toggle>
 
       <b-collapse id="nav-collapse" is-nav>
-
         <!-- Right aligned nav items -->
         <b-navbar-nav class="ml-auto">
-          <b-nav-item active href="https://github.com/aouyang1/go-matrixprofile"><Octicon :icon="markGithub" /></b-nav-item>
-          <b-nav-item active href="https://www.cs.ucr.edu/~eamonn/MatrixProfile.html">UCR Webpage</b-nav-item>
+          <b-nav-item
+            active
+            href="https://github.com/aouyang1/go-matrixprofile"
+          >
+            <Octicon :icon="markGithub" />
+          </b-nav-item>
+          <b-nav-item
+            active
+            href="https://www.cs.ucr.edu/~eamonn/MatrixProfile.html"
+            >UCR Webpage
+          </b-nav-item>
         </b-navbar-nav>
       </b-collapse>
     </b-navbar>
@@ -19,11 +27,18 @@
       <b-row>
         <b-col cols="8">
           <TimeSeries ref="timeseries" :store="store" />
-          <AnnotationVector ref="annotationvector" :store="store" />
-          <MatrixProfile ref="matrixprofile" :store="store" />
+          <b-tabs small>
+            <b-tab title="Matrix Profile">
+              <AnnotationVector ref="annotationvector" :store="store" />
+              <MatrixProfile ref="matrixprofile" :store="store" />
+            </b-tab>
+            <b-tab title="Segmentation">
+              <Segmentation ref="segmentation" :store="store" />
+            </b-tab>
+          </b-tabs>
         </b-col>
         <b-col cols="4">
-          <b-input-group prepend="m" class="mb-2" >
+          <b-input-group prepend="m" class="mb-2">
             <b-form-input
               v-model.number="m"
               type="number"
@@ -34,62 +49,65 @@
               <b-btn @click="calculateMP">Calculate</b-btn>
             </b-input-group-append>
           </b-input-group>
-          <b-nav tabs>
-            <b-nav-item @click="enableMotifs">Motifs</b-nav-item>
-            <b-nav-item @click="enableDiscords">Discords</b-nav-item>
-            <b-nav-item @click="enableAVs">Annotation Vectors</b-nav-item>
-          </b-nav>
-          <div v-if="motifsActive">
-            <b-form inline>
-              <b-input-group
-                size="sm"
-                class="mb-2 mr-sm-1 mb-sm-0"
-                prepend="top-k"
-              >
-                <b-form-input
-                  v-model="kmotifs"
-                  type="number"
-                  placeholder="max number of motifs"
+          <b-tabs>
+            <b-tab title="Motifs">
+              <b-form inline>
+                <b-input-group
+                  size="sm"
+                  class="mb-2 mr-sm-1 mb-sm-0"
+                  prepend="top-k"
                 >
-                </b-form-input>
-              </b-input-group>
-              <b-input-group
-                size="sm"
-                class="mb-2 mr-sm-1 mb-sm-0"
-                prepend="radius"
-              >
-                <b-form-input v-model="r" type="number" placeholder="radius">
-                </b-form-input>
-              </b-input-group>
-              <b-btn size="sm" @click="getMotifs">Find</b-btn>
-            </b-form>
-
-            <Motifs ref="motifs" :store="store" />
-          </div>
-          <div v-if="discordsActive">
-            <b-form inline>
-              <b-input-group
-                size="sm"
-                class="mb-2 mr-sm-1 mb-sm-0"
-                prepend="top-k"
-              >
-                <b-form-input
-                  v-model="kdiscords"
-                  type="number"
-                  placeholder="max number of discords"
+                  <b-form-input
+                    v-model="kmotifs"
+                    type="number"
+                    placeholder="max number of motifs"
+                  >
+                  </b-form-input>
+                </b-input-group>
+                <b-input-group
+                  size="sm"
+                  class="mb-2 mr-sm-1 mb-sm-0"
+                  prepend="radius"
                 >
-                </b-form-input>
-              </b-input-group>
-              <b-btn size="sm" @click="getDiscords">Find</b-btn>
-            </b-form>
+                  <b-form-input v-model="r" type="number" placeholder="radius">
+                  </b-form-input>
+                </b-input-group>
+                <b-btn size="sm" @click="getMotifs">Find</b-btn>
+              </b-form>
 
-            <Discords :store="store" />
-          </div>
-          <div v-if="avsActive">
-            <b-form inline>
-              <b-form-select v-model="selectedav" :options="avoptions" @change="avChange"></b-form-select>
-            </b-form>
-          </div>
+              <Motifs ref="motifs" :store="store" />
+            </b-tab>
+            <b-tab title="Discords">
+              <b-form inline>
+                <b-input-group
+                  size="sm"
+                  class="mb-2 mr-sm-1 mb-sm-0"
+                  prepend="top-k"
+                >
+                  <b-form-input
+                    v-model="kdiscords"
+                    type="number"
+                    placeholder="max number of discords"
+                  >
+                  </b-form-input>
+                </b-input-group>
+                <b-btn size="sm" @click="getDiscords">Find</b-btn>
+              </b-form>
+
+              <Discords :store="store" />
+            </b-tab>
+            <b-tab title="Annotation Vectors">
+              <b-form inline>
+                <b-form-select
+                  size="sm"
+                  v-model="selectedav"
+                  :options="avoptions"
+                  @change="avChange"
+                >
+                </b-form-select>
+              </b-form>
+            </b-tab>
+          </b-tabs>
         </b-col>
       </b-row>
     </b-container>
@@ -102,6 +120,7 @@ import Motifs from "./components/Motifs.vue";
 import Discords from "./components/Discords.vue";
 import MatrixProfile from "./components/MatrixProfile.vue";
 import AnnotationVector from "./components/AnnotationVector.vue";
+import Segmentation from "./components/Segmentation.vue";
 import Octicon, { markGithub } from "octicons-vue";
 import axios from "axios";
 
@@ -110,9 +129,6 @@ export default {
   data() {
     return {
       markGithub: markGithub,
-      motifsActive: true,
-      discordsActive: false,
-      avsActive: false,
       ts: [],
       n: 0,
       m: 30,
@@ -121,6 +137,7 @@ export default {
       motifs: [],
       kdiscords: 3,
       discords: [],
+      cac: [],
       selectedav: "default",
       avoptions: [
         { value: "default", text: "Default" },
@@ -133,6 +150,7 @@ export default {
         tsOption: genTSOption([]),
         annotationVectorOption: genAVOption([]),
         matrixProfileOption: genMPOption([]),
+        segmentationOption: genSegOption([]),
         motifOptions: [],
         discordOptions: []
       }
@@ -144,32 +162,19 @@ export default {
     Discords,
     MatrixProfile,
     AnnotationVector,
+    Segmentation,
     Octicon
   },
   created: function() {
     this.getTimeSeries();
   },
   methods: {
-    enableMotifs: function() {
-      this.motifsActive = true;
-      this.discordsActive = false;
-      this.avsActive = false;
-    },
-    enableDiscords: function() {
-      this.motifsActive = false;
-      this.discordsActive = true;
-      this.avsActive = false;
-    },
-    enableAVs: function() {
-      this.motifsActive = false;
-      this.discordsActive = false;
-      this.avsActive = true;
-    },
     getTimeSeries: function() {
       axios
         .get(process.env.VUE_APP_MPSERVER_URL + "/data", {
           withCredentials: true
-        }).then(
+        })
+        .then(
           result => {
             this.ts = result.data;
             this.n = result.data.length;
@@ -184,14 +189,17 @@ export default {
     },
     calculateMP: function() {
       axios
-        .post(process.env.VUE_APP_MPSERVER_URL + "/calculate",
+        .post(
+          process.env.VUE_APP_MPSERVER_URL + "/calculate",
           { m: this.m },
           {
             withCredentials: true,
-            headers: {"Content-Type": "application/x-www-form-urlencoded"}
-          })
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+          }
+        )
         .then(
           result => {
+            console.log(result);
             this.getAnnotationVector();
           },
           error => {
@@ -219,9 +227,16 @@ export default {
               if (motifGroup.length != 0) {
                 options.push({
                   chartOptions: this.createMotifChartOption(
-                    "motif " + i + ": " + this.motifs.groups[i].MinDist.toFixed(2),
+                    "motif ".concat(
+                      i,
+                      ": ",
+                      this.motifs.groups[i].MinDist.toFixed(2)
+                    ),
                     motifGroup.slice(0, Math.min(10, motifGroup.length)),
-                    this.motifs.groups[i].Idx.slice(0, Math.min(10, motifGroup.length))
+                    this.motifs.groups[i].Idx.slice(
+                      0,
+                      Math.min(10, motifGroup.length)
+                    )
                   )
                 });
               } else {
@@ -240,9 +255,7 @@ export default {
       axios
         .get(process.env.VUE_APP_MPSERVER_URL + "/topkdiscords", {
           withCredentials: true,
-          params: {
-            k: this.kdiscords
-          }
+          params: { k: this.kdiscords }
         })
         .then(
           result => {
@@ -272,11 +285,14 @@ export default {
     },
     avChange: function(av) {
       axios
-        .post(process.env.VUE_APP_MPSERVER_URL + "/anvector",
-          {name: av}, {
+        .post(
+          process.env.VUE_APP_MPSERVER_URL + "/anvector",
+          { name: av },
+          {
             withCredentials: true,
-            headers: {"Content-Type": "application/x-www-form-urlencoded"}
-          })
+            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+          }
+        )
         .then(
           result => {
             var avoption = genAVOption(result.data.values);
@@ -287,6 +303,7 @@ export default {
             mpoption.xAxis[0].max = this.n;
             this.store.matrixProfileOption = mpoption;
 
+            this.getSegmentation();
             this.getMotifs();
             this.getDiscords();
           },
@@ -295,6 +312,24 @@ export default {
           }
         );
     },
+    getSegmentation: function() {
+      axios
+        .get(process.env.VUE_APP_MPSERVER_URL + "/segment", {
+          withCredentials: true
+        })
+        .then(
+          result => {
+            this.cac = result.data.cac;
+            var option = genSegOption(this.cac);
+            option.xAxis[0].max = this.n;
+            this.store.segmentationOption = option;
+          },
+          error => {
+            this.err = JSON.stringify(error.response.data.error);
+          }
+        );
+    },
+
     getM: function() {
       return this.m;
     },
@@ -327,7 +362,7 @@ export default {
                 var startIdx = series[i].name;
                 self.store.tsOption.xAxis[0].plotBands.push({
                   from: startIdx,
-                  to: startIdx + parseInt(self.getM(), 10),
+                  to: startIdx + parseInt(self.m, 10),
                   color: "#FCFFC5"
                 });
 
@@ -368,7 +403,7 @@ export default {
               var startIdx = parseInt(e.point.series.userOptions.id, 10);
               self.store.tsOption.xAxis[0].plotBands.push({
                 from: startIdx,
-                to: startIdx + parseInt(self.getM(), 10),
+                to: startIdx + parseInt(self.m, 10),
                 color: LightenDarkenColor(e.point.series.color, 20)
               });
 
@@ -426,11 +461,13 @@ function createChartOption(title, data, name, height) {
     tooltip: {
       shared: true
     },
-    series: [{
-      name: name,
-      showInLegend: false,
-      data: data
-    }],
+    series: [
+      {
+        name: name,
+        showInLegend: false,
+        data: data
+      }
+    ],
     xAxis: [
       {
         plotBands: []
@@ -443,32 +480,50 @@ function createChartOption(title, data, name, height) {
 
 function genTSOption(data) {
   var option = createChartOption("Time Series", data, "value", 275);
-  option.yAxis = [{
-    title: {text: "value"}
-  }];
+  option.yAxis = [
+    {
+      title: { text: "value" }
+    }
+  ];
 
   return option;
 }
 
 function genAVOption(data) {
   var option = createChartOption("Annotation Vector", data, "weight", 100);
-  option.series[0].color = '#006600';
-  option.yAxis = [{
-    title: {text: "weight"},
-    max: 1.0,
-    min: 0.0
-  }];
-  option.title.style = {"fontSize": "12px"};
+  option.series[0].color = "#006600";
+  option.yAxis = [
+    {
+      title: { text: "weight" },
+      max: 1.0,
+      min: 0.0
+    }
+  ];
+  option.title.style = { fontSize: "12px" };
 
   return option;
 }
 
 function genMPOption(data) {
-  var option = createChartOption("Matrix Profile", data, "distance", 275);
-  option.series[0].color = '#000066';
-  option.yAxis = [{
-    title: {text: "distance"}
-  }];
+  var option = createChartOption("Matrix Profile", data, "distance", 250);
+  option.series[0].color = "#000066";
+  option.yAxis = [
+    {
+      title: { text: "distance" }
+    }
+  ];
+  option.title.style = { fontSize: "12px" };
+
+  return option;
+}
+
+function genSegOption(data) {
+  var option = createChartOption("Segmentation", data, "cac", 350);
+  option.yAxis = [
+    {
+      title: { text: "corrected arc crossings" }
+    }
+  ];
 
   return option;
 }

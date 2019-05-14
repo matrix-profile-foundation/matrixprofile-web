@@ -1,9 +1,6 @@
 FROM node:8-alpine
 RUN ["npm", "install", "-g", "serve"]
 WORKDIR /home/node/app
-ADD . /home/node/app
-ENV NODE_ENV development
-RUN ["npm", "run", "build-dev"]
 USER node
 EXPOSE 8080
 CMD ["serve", "-s", "dist", "-l", "8080"]

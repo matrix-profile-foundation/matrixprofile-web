@@ -58,6 +58,7 @@ func main() {
 		v1.POST("/calculate", calculateMP)
 		v1.GET("/topkmotifs", topKMotifs)
 		v1.GET("/topkdiscords", topKDiscords)
+		v1.GET("/segment", segment)
 		v1.POST("/anvector", setAnnotationVector)
 	}
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
@@ -323,6 +324,33 @@ func topKDiscords(c *gin.Context) {
 
 	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
 	c.JSON(200, discord)
+}
+
+type Segment struct {
+	CAC []float64 `json:"cac"`
+}
+
+func segment(c *gin.Context) {
+	endpoint := "/api/v1/segment"
+	method := "GET"
+	session := sessions.Default(c)
+	buildCORSHeaders(c)
+
+	v := session.Get("mp")
+	var mp matrixprofile.MatrixProfile
+	if v == nil {
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
+		c.JSON(500, gin.H{
+			"error": "matrix profile is not initialized to compute discords",
+		})
+		return
+	} else {
+		mp = v.(matrixprofile.MatrixProfile)
+	}
+	_, _, cac := mp.Segment()
+
+	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
+	c.JSON(200, Segment{cac})
 }
 
 type AnnotationVector struct {
