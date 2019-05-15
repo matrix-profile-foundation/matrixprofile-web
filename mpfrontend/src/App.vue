@@ -392,6 +392,7 @@ export default {
       var self = this;
       var option = {
         chart: {
+          animation: false,
           height: "200px",
           events: {
             click: function(e) {
@@ -504,7 +505,7 @@ export default {
 
 function createChartOption(title, data, name, height) {
   var option = {
-    chart: { height: height, zoomType: "x" },
+    chart: { height: height, zoomType: "x", animation: false },
     title: { text: title },
     plotOptions: {
       stickyTracking: false,
