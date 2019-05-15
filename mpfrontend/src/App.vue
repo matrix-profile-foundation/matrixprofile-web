@@ -16,7 +16,7 @@
             target="_blank"
             href="https://github.com/aouyang1/go-matrixprofile"
           >
-            <Octicon scale="2" :icon="markGithub" />
+            <Octicon :scale="2" :icon="markGithub" />
           </b-nav-item>
           <b-nav-item
             active
@@ -51,7 +51,19 @@
             >
             </b-form-input>
             <b-input-group-append>
-              <b-btn @click="calculateMP">Calculate</b-btn>
+              <b-btn @click="calculateMP">
+                <template v-if="calculatingMP">
+                  <b-spinner
+                    small
+                    variant="light"
+                    class="mb-1 mr-1"
+                  ></b-spinner>
+                  Calculating...
+                </template>
+                <template v-else>
+                  Calculate
+                </template>
+              </b-btn>
             </b-input-group-append>
           </b-input-group>
           <b-tabs>
@@ -73,9 +85,15 @@
                   <b-form-input v-model="r" type="number" placeholder="radius">
                   </b-form-input>
                 </b-input-group>
-                <b-btn size="sm" @click="getMotifs" :disabled="!mpCalculated"
-                  >Find</b-btn
-                >
+                <b-btn size="sm" @click="getMotifs" :disabled="!mpCalculated">
+                  <template v-if="calculatingMotifs">
+                    <b-spinner small variant="light" class="mr-1"></b-spinner>
+                    Finding...
+                  </template>
+                  <template v-else>
+                    Find
+                  </template>
+                </b-btn>
               </b-form>
 
               <Motifs ref="motifs" :store="store" />
@@ -90,9 +108,15 @@
                   >
                   </b-form-input>
                 </b-input-group>
-                <b-btn size="sm" @click="getDiscords" :disabled="!mpCalculated"
-                  >Find</b-btn
-                >
+                <b-btn size="sm" @click="getDiscords" :disabled="!mpCalculated">
+                  <template v-if="calculatingDiscords">
+                    <b-spinner small variant="light" class="mr-1"></b-spinner>
+                    Finding...
+                  </template>
+                  <template v-else>
+                    Find
+                  </template>
+                </b-btn>
               </b-form>
 
               <Discords :store="store" />
@@ -143,6 +167,9 @@ export default {
       kdiscords: 3,
       discords: [],
       cac: [],
+      calculatingMP: false,
+      calculatingMotifs: false,
+      calculatingDiscords: false,
       mpCalculated: false,
       selectedav: "default",
       avoptions: [
@@ -212,6 +239,7 @@ export default {
         );
     },
     calculateMP: function() {
+      this.calculatingMP = true;
       axios
         .post(
           process.env.VUE_APP_MPSERVER_URL + "/calculate",
@@ -230,16 +258,17 @@ export default {
 
             this.getAnnotationVector();
 
-            this.mpCalculated = true;
             this.err = "";
           },
           error => {
+            this.calculatingMP = false;
             this.err = JSON.stringify(error.response.data.error);
             this.checkError(this.err);
           }
         );
     },
     getMotifs: function() {
+      this.calculatingMotifs = true;
       axios
         .get(process.env.VUE_APP_MPSERVER_URL + "/topkmotifs", {
           withCredentials: true,
@@ -277,16 +306,18 @@ export default {
             }
 
             this.store.motifOptions = options;
-
+            this.calculatingMotifs = false;
             this.err = "";
           },
           error => {
+            this.calculatingMotifs = false;
             this.err = JSON.stringify(error.response.data.error);
             this.checkError(this.err);
           }
         );
     },
     getDiscords: function() {
+      this.calculatingDiscords = true;
       axios
         .get(process.env.VUE_APP_MPSERVER_URL + "/topkdiscords", {
           withCredentials: true,
@@ -309,10 +340,11 @@ export default {
             }
 
             this.store.discordOptions = options;
-
+            this.calculatingDiscords = false;
             this.err = "";
           },
           error => {
+            this.calculatingDiscords = false;
             this.err = JSON.stringify(error.response.data.error);
             this.checkError(this.err);
           }
@@ -344,6 +376,8 @@ export default {
             this.getMotifs();
             this.getDiscords();
 
+            this.mpCalculated = true;
+            this.calculatingMP = false;
             this.err = "";
           },
           error => {
