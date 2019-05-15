@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/gob"
 	"encoding/json"
+	"errors"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -31,6 +32,11 @@ var (
 		[]string{"method", "endpoint", "code"},
 	)
 )
+
+type RespError struct {
+	Error        error `json:"error"`
+	CacheExpired bool  `json:"cache_expired"`
+}
 
 func init() {
 	prometheus.MustRegister(requestTotal)
@@ -151,7 +157,7 @@ func getData(c *gin.Context) {
 	data, err := fetchData()
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": err.Error()})
+		c.JSON(500, RespError{Error: err})
 		return
 	}
 
@@ -177,7 +183,7 @@ func calculateMP(c *gin.Context) {
 	}{}
 	if err := c.BindJSON(&params); err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": err})
+		c.JSON(500, RespError{Error: err})
 		return
 	}
 	m := params.M
@@ -185,20 +191,20 @@ func calculateMP(c *gin.Context) {
 	data, err := fetchData()
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": err})
+		c.JSON(500, RespError{Error: err})
 		return
 	}
 
 	mp, err := matrixprofile.New(data.Data, nil, m)
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": err})
+		c.JSON(500, RespError{Error: err})
 		return
 	}
 
 	if err = mp.Stomp(mpConcurrency); err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": err})
+		c.JSON(500, RespError{Error: err})
 		return
 	}
 
@@ -227,14 +233,14 @@ func topKMotifs(c *gin.Context) {
 	k, err := strconv.Atoi(c.Query("k"))
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": err})
+		c.JSON(500, RespError{Error: err})
 		return
 	}
 
 	r, err := strconv.ParseFloat(c.Query("r"), 64)
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": err})
+		c.JSON(500, RespError{Error: err})
 		return
 	}
 
@@ -244,8 +250,9 @@ func topKMotifs(c *gin.Context) {
 	if v == nil {
 		// either the cache expired or this was called directly
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{
-			"error": "matrix profile is not initialized to compute motifs",
+		c.JSON(500, RespError{
+			Error:        errors.New("matrix profile is not initialized to compute motifs"),
+			CacheExpired: true,
 		})
 		return
 	} else {
@@ -254,7 +261,7 @@ func topKMotifs(c *gin.Context) {
 	motifGroups, err := mp.TopKMotifs(k, r)
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": err})
+		c.JSON(500, RespError{Error: err})
 		return
 	}
 
@@ -267,7 +274,7 @@ func topKMotifs(c *gin.Context) {
 			motif.Series[i][j], err = matrixprofile.ZNormalize(mp.A[midx : midx+mp.M])
 			if err != nil {
 				requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-				c.JSON(500, gin.H{"error": err})
+				c.JSON(500, RespError{Error: err})
 				return
 			}
 		}
@@ -293,7 +300,7 @@ func topKDiscords(c *gin.Context) {
 	k, err := strconv.Atoi(kstr)
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": err})
+		c.JSON(500, RespError{Error: err})
 		return
 	}
 
@@ -301,8 +308,9 @@ func topKDiscords(c *gin.Context) {
 	var mp matrixprofile.MatrixProfile
 	if v == nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{
-			"error": "matrix profile is not initialized to compute discords",
+		c.JSON(500, RespError{
+			errors.New("matrix profile is not initialized to compute discords"),
+			true,
 		})
 		return
 	} else {
@@ -311,8 +319,8 @@ func topKDiscords(c *gin.Context) {
 	discords, err := mp.TopKDiscords(k, mp.M/2)
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{
-			"error": "failed to compute discords",
+		c.JSON(500, RespError{
+			Error: errors.New("failed to compute discords"),
 		})
 		return
 	}
@@ -324,7 +332,7 @@ func topKDiscords(c *gin.Context) {
 		discord.Series[i], err = matrixprofile.ZNormalize(mp.A[didx : didx+mp.M])
 		if err != nil {
 			requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-			c.JSON(500, gin.H{"error": err})
+			c.JSON(500, RespError{Error: err})
 			return
 		}
 	}
@@ -348,7 +356,9 @@ func getMP(c *gin.Context) {
 	}{}
 	if err := c.BindJSON(&params); err != nil {
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": "failed to unmarshall POST parameters with field `name`"})
+		c.JSON(500, RespError{
+			Error: errors.New("failed to unmarshall POST parameters with field `name`"),
+		})
 		return
 	}
 	avname := params.Name
@@ -359,7 +369,10 @@ func getMP(c *gin.Context) {
 		// matrix profile is not initialized so don't return any data back for the
 		// annotation vector
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
-		c.JSON(500, MP{})
+		c.JSON(500, RespError{
+			Error:        errors.New("matrix profile is not initialized"),
+			CacheExpired: true,
+		})
 		return
 	} else {
 		mp = v.(matrixprofile.MatrixProfile)
@@ -376,7 +389,9 @@ func getMP(c *gin.Context) {
 		mp.AV = matrixprofile.ClippingAV
 	default:
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": "invalid annotation vector name " + avname})
+		c.JSON(500, RespError{
+			Error: errors.New("invalid annotation vector name " + avname),
+		})
 		return
 	}
 
@@ -387,14 +402,14 @@ func getMP(c *gin.Context) {
 	av, err := mp.GetAV()
 	if err != nil {
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": err})
+		c.JSON(500, RespError{Error: err})
 		return
 	}
 
 	adjustedMP, err := mp.ApplyAV(av)
 	if err != nil {
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
-		c.JSON(500, gin.H{"error": err})
+		c.JSON(500, RespError{Error: err})
 		return
 	}
 

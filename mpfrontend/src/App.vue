@@ -31,7 +31,7 @@
     <b-container fluid>
       <b-row>
         <b-col cols="8">
-          <TimeSeries ref="timeseries" :store="store" />
+          <TimeSeries class="mt-2" ref="timeseries" :store="store" />
           <b-tabs small>
             <b-tab title="Matrix Profile">
               <AnnotationVector ref="annotationvector" :store="store" />
@@ -85,7 +85,7 @@
                   <b-form-input v-model="r" type="number" placeholder="radius">
                   </b-form-input>
                 </b-input-group>
-                <b-btn size="sm" @click="getMotifs" :disabled="!mpCalculated">
+                <b-btn size="sm" @click="getMotifs">
                   <template v-if="calculatingMotifs">
                     <b-spinner small variant="light" class="mr-1"></b-spinner>
                     Finding...
@@ -108,7 +108,7 @@
                   >
                   </b-form-input>
                 </b-input-group>
-                <b-btn size="sm" @click="getDiscords" :disabled="!mpCalculated">
+                <b-btn size="sm" @click="getDiscords">
                   <template v-if="calculatingDiscords">
                     <b-spinner small variant="light" class="mr-1"></b-spinner>
                     Finding...
@@ -170,7 +170,6 @@ export default {
       calculatingMP: false,
       calculatingMotifs: false,
       calculatingDiscords: false,
-      mpCalculated: false,
       selectedav: "default",
       avoptions: [
         { value: "default", text: "Default" },
@@ -189,6 +188,7 @@ export default {
           "This attemps to suppress regions where there are clipping effects while capture data and raises their matrix profile distances as to not find them as prominent motifs. Subsequences in the signal that have more values at the max or min of the entire signal are weighted more and their matrix profile distances are increased."
       },
       err: "",
+      retries: 0,
       store: {
         tsOption: genTSOption([]),
         annotationVectorOption: genAVOption([]),
@@ -267,6 +267,21 @@ export default {
           }
         );
     },
+    retryCalculateMP: function(errResp) {
+      var maxRetries = 3;
+      if (errResp.cache_expired && this.retries < maxRetries) {
+        this.retries++;
+        console.log(
+          "Retrying to cache matrix profile with " +
+            (maxRetries - this.retries).toString() +
+            " retries remaining"
+        );
+        this.calculateMP();
+      } else {
+        this.err = JSON.stringify(errResp.error);
+        this.checkError(this.err);
+      }
+    },
     getMotifs: function() {
       this.calculatingMotifs = true;
       axios
@@ -308,11 +323,11 @@ export default {
             this.store.motifOptions = options;
             this.calculatingMotifs = false;
             this.err = "";
+            this.retries = 0;
           },
           error => {
             this.calculatingMotifs = false;
-            this.err = JSON.stringify(error.response.data.error);
-            this.checkError(this.err);
+            this.retryCalculateMP(error.response.data);
           }
         );
     },
@@ -342,11 +357,11 @@ export default {
             this.store.discordOptions = options;
             this.calculatingDiscords = false;
             this.err = "";
+            this.retries = 0;
           },
           error => {
             this.calculatingDiscords = false;
-            this.err = JSON.stringify(error.response.data.error);
-            this.checkError(this.err);
+            this.retryCalculateMP(error.response.data);
           }
         );
     },
@@ -376,12 +391,11 @@ export default {
             this.getMotifs();
             this.getDiscords();
 
-            this.mpCalculated = true;
             this.calculatingMP = false;
             this.err = "";
           },
           error => {
-            console.log(JSON.stringify(error.response.data.error));
+            this.retryCalculateMP(error.response.data);
           }
         );
     },
