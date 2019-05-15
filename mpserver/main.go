@@ -58,8 +58,7 @@ func main() {
 		v1.POST("/calculate", calculateMP)
 		v1.GET("/topkmotifs", topKMotifs)
 		v1.GET("/topkdiscords", topKDiscords)
-		v1.GET("/segment", segment)
-		v1.POST("/anvector", setAnnotationVector)
+		v1.POST("/mp", getMP)
 	}
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
@@ -163,6 +162,10 @@ func getData(c *gin.Context) {
 	c.JSON(200, data.Data)
 }
 
+type Segment struct {
+	CAC []float64 `json:"cac"`
+}
+
 func calculateMP(c *gin.Context) {
 	endpoint := "/api/v1/calculate"
 	method := "POST"
@@ -192,18 +195,22 @@ func calculateMP(c *gin.Context) {
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
+
 	if err = mp.Stomp(mpConcurrency); err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": err})
 		return
 	}
 
+	// compute the corrected arc curve based on the current index matrix profile
+	_, _, cac := mp.Segment()
+
 	// cache matrix profile for current session
 	session.Set("mp", &mp)
 	session.Save()
 
 	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
-	c.JSON(200, gin.H{})
+	c.JSON(200, Segment{cac})
 }
 
 type Motif struct {
@@ -326,40 +333,13 @@ func topKDiscords(c *gin.Context) {
 	c.JSON(200, discord)
 }
 
-type Segment struct {
-	CAC []float64 `json:"cac"`
+type MP struct {
+	AV         []float64 `json:"annotation_vector"`
+	AdjustedMP []float64 `json:"adjusted_mp"`
 }
 
-func segment(c *gin.Context) {
-	endpoint := "/api/v1/segment"
-	method := "GET"
-	session := sessions.Default(c)
-	buildCORSHeaders(c)
-
-	v := session.Get("mp")
-	var mp matrixprofile.MatrixProfile
-	if v == nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		c.JSON(500, gin.H{
-			"error": "matrix profile is not initialized to compute discords",
-		})
-		return
-	} else {
-		mp = v.(matrixprofile.MatrixProfile)
-	}
-	_, _, cac := mp.Segment()
-
-	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
-	c.JSON(200, Segment{cac})
-}
-
-type AnnotationVector struct {
-	Values []float64 `json:"values"`
-	NewMP  []float64 `json:"newmp"`
-}
-
-func setAnnotationVector(c *gin.Context) {
-	endpoint := "/api/v1/anvector"
+func getMP(c *gin.Context) {
+	endpoint := "/api/v1/mp"
 	session := sessions.Default(c)
 	buildCORSHeaders(c)
 
@@ -368,7 +348,7 @@ func setAnnotationVector(c *gin.Context) {
 	}{}
 	if err := c.BindJSON(&params); err != nil {
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
-		c.JSON(500, AnnotationVector{})
+		c.JSON(500, gin.H{"error": "failed to unmarshall POST parameters with field `name`"})
 		return
 	}
 	avname := params.Name
@@ -378,15 +358,15 @@ func setAnnotationVector(c *gin.Context) {
 	if v == nil {
 		// matrix profile is not initialized so don't return any data back for the
 		// annotation vector
-		requestTotal.WithLabelValues("POST", endpoint, "200").Inc()
-		c.JSON(200, AnnotationVector{})
+		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
+		c.JSON(500, MP{})
 		return
 	} else {
 		mp = v.(matrixprofile.MatrixProfile)
 	}
 
 	switch avname {
-	case "default":
+	case "default", "":
 		mp.AV = matrixprofile.DefaultAV
 	case "complexity":
 		mp.AV = matrixprofile.ComplexityAV
@@ -411,7 +391,7 @@ func setAnnotationVector(c *gin.Context) {
 		return
 	}
 
-	newMP, err := mp.ApplyAV(av)
+	adjustedMP, err := mp.ApplyAV(av)
 	if err != nil {
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
 		c.JSON(500, gin.H{"error": err})
@@ -419,7 +399,7 @@ func setAnnotationVector(c *gin.Context) {
 	}
 
 	requestTotal.WithLabelValues("POST", endpoint, "200").Inc()
-	c.JSON(200, AnnotationVector{Values: av, NewMP: newMP})
+	c.JSON(200, MP{AV: av, AdjustedMP: adjustedMP})
 }
 
 func buildCORSHeaders(c *gin.Context) {

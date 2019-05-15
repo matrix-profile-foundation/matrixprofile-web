@@ -42,4 +42,4 @@ push-mpserver:
 	docker push aouyang1/mpserver:latest
 
 push-mpfrontend:
-	docker push aouyang1/mpfrontend: latest
+	docker push aouyang1/mpfrontend:latest

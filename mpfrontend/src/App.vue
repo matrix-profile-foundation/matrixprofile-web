@@ -1,5 +1,8 @@
 <template>
   <div id="app">
+    <b-modal ref="modal-mp-error" title="Matrix Profile Error" ok-only>
+      <p class="my-4">{{ err }}</p>
+    </b-modal>
     <b-navbar toggleable="lg" type="dark" variant="info">
       <b-navbar-brand>Matrix Profiles</b-navbar-brand>
 
@@ -10,19 +13,21 @@
         <b-navbar-nav class="ml-auto">
           <b-nav-item
             active
+            target="_blank"
             href="https://github.com/aouyang1/go-matrixprofile"
           >
-            <Octicon :icon="markGithub" />
+            <Octicon scale="2" :icon="markGithub" />
           </b-nav-item>
           <b-nav-item
             active
+            target="_blank"
             href="https://www.cs.ucr.edu/~eamonn/MatrixProfile.html"
+            class="mt-1"
             >UCR Webpage
           </b-nav-item>
         </b-navbar-nav>
       </b-collapse>
     </b-navbar>
-    <h5>{{ err }}</h5>
     <b-container fluid>
       <b-row>
         <b-col cols="8">
@@ -38,7 +43,7 @@
           </b-tabs>
         </b-col>
         <b-col cols="4">
-          <b-input-group prepend="m" class="mb-2">
+          <b-input-group prepend="m" class="mb-2 mt-2">
             <b-form-input
               v-model.number="m"
               type="number"
@@ -52,11 +57,7 @@
           <b-tabs>
             <b-tab title="Motifs">
               <b-form inline>
-                <b-input-group
-                  size="sm"
-                  class="mb-2 mr-sm-1 mb-sm-0"
-                  prepend="top-k"
-                >
+                <b-input-group size="sm" class="mt-1 mb-1 mr-1" prepend="top-k">
                   <b-form-input
                     v-model="kmotifs"
                     type="number"
@@ -66,24 +67,22 @@
                 </b-input-group>
                 <b-input-group
                   size="sm"
-                  class="mb-2 mr-sm-1 mb-sm-0"
+                  class="mt-1 mb-1 mr-1"
                   prepend="radius"
                 >
                   <b-form-input v-model="r" type="number" placeholder="radius">
                   </b-form-input>
                 </b-input-group>
-                <b-btn size="sm" @click="getMotifs">Find</b-btn>
+                <b-btn size="sm" @click="getMotifs" :disabled="!mpCalculated"
+                  >Find</b-btn
+                >
               </b-form>
 
               <Motifs ref="motifs" :store="store" />
             </b-tab>
             <b-tab title="Discords">
               <b-form inline>
-                <b-input-group
-                  size="sm"
-                  class="mb-2 mr-sm-1 mb-sm-0"
-                  prepend="top-k"
-                >
+                <b-input-group size="sm" class="mt-1 mb-1 mr-1" prepend="top-k">
                   <b-form-input
                     v-model="kdiscords"
                     type="number"
@@ -91,7 +90,9 @@
                   >
                   </b-form-input>
                 </b-input-group>
-                <b-btn size="sm" @click="getDiscords">Find</b-btn>
+                <b-btn size="sm" @click="getDiscords" :disabled="!mpCalculated"
+                  >Find</b-btn
+                >
               </b-form>
 
               <Discords :store="store" />
@@ -100,11 +101,15 @@
               <b-form inline>
                 <b-form-select
                   size="sm"
+                  class="mt-1 mb-1"
                   v-model="selectedav"
                   :options="avoptions"
                   @change="avChange"
                 >
                 </b-form-select>
+                <p class="text-left">
+                  {{ this.avdescription[this.selectedav] }}
+                </p>
               </b-form>
             </b-tab>
           </b-tabs>
@@ -138,6 +143,7 @@ export default {
       kdiscords: 3,
       discords: [],
       cac: [],
+      mpCalculated: false,
       selectedav: "default",
       avoptions: [
         { value: "default", text: "Default" },
@@ -145,6 +151,16 @@ export default {
         { value: "meanstd", text: "Mean Standard Deviation" },
         { value: "clipping", text: "Clipping" }
       ],
+      avdescription: {
+        default:
+          "This is the default annotation vector which does not modify the matrix profile whatsover.",
+        complexity:
+          "This biases the matrix profile towards areas of high signal complexity or variation in signal. Generally this is good for focusing motif search around areas with high signal variance. Found discords may not be useful since areas with low complexity have their matrix profile distance artificially increased.",
+        meanstd:
+          "This attempts to suppress regions of high fluctuation by targetting areas where the subsequence standard deviation is larger than the mean.",
+        clipping:
+          "This attemps to suppress regions where there are clipping effects while capture data and raises their matrix profile distances as to not find them as prominent motifs. Subsequences in the signal that have more values at the max or min of the entire signal are weighted more and their matrix profile distances are increased."
+      },
       err: "",
       store: {
         tsOption: genTSOption([]),
@@ -169,6 +185,11 @@ export default {
     this.getTimeSeries();
   },
   methods: {
+    checkError: function() {
+      if (this.err != "") {
+        this.$refs["modal-mp-error"].show();
+      }
+    },
     getTimeSeries: function() {
       axios
         .get(process.env.VUE_APP_MPSERVER_URL + "/data", {
@@ -181,9 +202,12 @@ export default {
             var option = genTSOption(result.data);
             option.xAxis[0].max = this.n;
             this.store.tsOption = option;
+
+            this.err = "";
           },
           error => {
             this.err = JSON.stringify(error.response.data.error);
+            this.checkError(this.err);
           }
         );
     },
@@ -199,11 +223,19 @@ export default {
         )
         .then(
           result => {
-            console.log(result);
+            this.cac = result.data.cac;
+            var option = genSegOption(this.cac);
+            option.xAxis[0].max = this.n;
+            this.store.segmentationOption = option;
+
             this.getAnnotationVector();
+
+            this.mpCalculated = true;
+            this.err = "";
           },
           error => {
             this.err = JSON.stringify(error.response.data.error);
+            this.checkError(this.err);
           }
         );
     },
@@ -245,9 +277,12 @@ export default {
             }
 
             this.store.motifOptions = options;
+
+            this.err = "";
           },
           error => {
             this.err = JSON.stringify(error.response.data.error);
+            this.checkError(this.err);
           }
         );
     },
@@ -274,9 +309,12 @@ export default {
             }
 
             this.store.discordOptions = options;
+
+            this.err = "";
           },
           error => {
             this.err = JSON.stringify(error.response.data.error);
+            this.checkError(this.err);
           }
         );
     },
@@ -286,7 +324,7 @@ export default {
     avChange: function(av) {
       axios
         .post(
-          process.env.VUE_APP_MPSERVER_URL + "/anvector",
+          process.env.VUE_APP_MPSERVER_URL + "/mp",
           { name: av },
           {
             withCredentials: true,
@@ -295,41 +333,24 @@ export default {
         )
         .then(
           result => {
-            var avoption = genAVOption(result.data.values);
+            var avoption = genAVOption(result.data.annotation_vector);
             avoption.xAxis[0].max = this.n;
             this.store.annotationVectorOption = avoption;
 
-            var mpoption = genMPOption(result.data.newmp);
+            var mpoption = genMPOption(result.data.adjusted_mp);
             mpoption.xAxis[0].max = this.n;
             this.store.matrixProfileOption = mpoption;
 
-            this.getSegmentation();
             this.getMotifs();
             this.getDiscords();
-          },
-          error => {
-            this.err = JSON.stringify(error.response.data.error);
-          }
-        );
-    },
-    getSegmentation: function() {
-      axios
-        .get(process.env.VUE_APP_MPSERVER_URL + "/segment", {
-          withCredentials: true
-        })
-        .then(
-          result => {
-            this.cac = result.data.cac;
-            var option = genSegOption(this.cac);
-            option.xAxis[0].max = this.n;
-            this.store.segmentationOption = option;
-          },
-          error => {
-            this.err = JSON.stringify(error.response.data.error);
-          }
-        );
-    },
 
+            this.err = "";
+          },
+          error => {
+            console.log(JSON.stringify(error.response.data.error));
+          }
+        );
+    },
     getM: function() {
       return this.m;
     },
