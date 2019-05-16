@@ -35,6 +35,14 @@ var (
 		},
 		[]string{"endpoint"},
 	)
+	redisClientRequestDuration = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name:       "mpserver_client_redis_request_durations_ms",
+			Help:       "redis client request duration in milliseconds.",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		},
+		[]string{"command"},
+	)
 )
 
 type RespError struct {
@@ -45,6 +53,7 @@ type RespError struct {
 func init() {
 	prometheus.MustRegister(requestTotal)
 	prometheus.MustRegister(serviceRequestDuration)
+	prometheus.MustRegister(redisClientRequestDuration)
 }
 
 func main() {
@@ -106,4 +115,20 @@ func buildCORSHeaders(c *gin.Context) {
 	c.Header("Access-Control-Allow-Credentials", "true")
 	c.Header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
 	c.Header("Access-Control-Allow-Methods", "GET, POST")
+}
+
+func fetchMPCache(session sessions.Session) interface{} {
+	timer := prometheus.NewTimer(redisClientRequestDuration.WithLabelValues("GET"))
+	defer timer.ObserveDuration()
+
+	v := session.Get("mp")
+	return v
+}
+
+func storeMPCache(session sessions.Session, mp *matrixprofile.MatrixProfile) {
+	timer := prometheus.NewTimer(redisClientRequestDuration.WithLabelValues("SET"))
+	defer timer.ObserveDuration()
+
+	session.Set("mp", mp)
+	session.Save()
 }

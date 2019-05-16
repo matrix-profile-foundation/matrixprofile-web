@@ -57,8 +57,7 @@ func calculateMP(c *gin.Context) {
 	_, _, cac := mp.Segment()
 
 	// cache matrix profile for current session
-	session.Set("mp", &mp)
-	session.Save()
+	storeMPCache(session, mp)
 
 	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
 	serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)

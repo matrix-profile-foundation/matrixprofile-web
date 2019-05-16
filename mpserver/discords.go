@@ -32,7 +32,7 @@ func topKDiscords(c *gin.Context) {
 		return
 	}
 
-	v := session.Get("mp")
+	v := fetchMPCache(session)
 	var mp matrixprofile.MatrixProfile
 	if v == nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()

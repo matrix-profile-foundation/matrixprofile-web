@@ -38,7 +38,7 @@ func topKMotifs(c *gin.Context) {
 		return
 	}
 
-	v := session.Get("mp")
+	v := fetchMPCache(session)
 
 	var mp matrixprofile.MatrixProfile
 	if v == nil {

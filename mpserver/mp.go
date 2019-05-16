@@ -33,7 +33,7 @@ func getMP(c *gin.Context) {
 	}
 	avname := params.Name
 
-	v := session.Get("mp")
+	v := fetchMPCache(session)
 	var mp matrixprofile.MatrixProfile
 	if v == nil {
 		// matrix profile is not initialized so don't return any data back for the
@@ -68,8 +68,7 @@ func getMP(c *gin.Context) {
 	}
 
 	// cache matrix profile for current session
-	session.Set("mp", &mp)
-	session.Save()
+	storeMPCache(session, &mp)
 
 	av, err := mp.GetAV()
 	if err != nil {
