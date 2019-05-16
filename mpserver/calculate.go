@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -11,6 +13,7 @@ type Segment struct {
 }
 
 func calculateMP(c *gin.Context) {
+	start := time.Now()
 	endpoint := "/api/v1/calculate"
 	method := "POST"
 	session := sessions.Default(c)
@@ -21,6 +24,7 @@ func calculateMP(c *gin.Context) {
 	}{}
 	if err := c.BindJSON(&params); err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
+		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 		c.JSON(500, RespError{Error: err})
 		return
 	}
@@ -29,6 +33,7 @@ func calculateMP(c *gin.Context) {
 	data, err := fetchData()
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
+		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 		c.JSON(500, RespError{Error: err})
 		return
 	}
@@ -36,12 +41,14 @@ func calculateMP(c *gin.Context) {
 	mp, err := matrixprofile.New(data.Data, nil, m)
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
+		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 		c.JSON(500, RespError{Error: err})
 		return
 	}
 
 	if err = mp.Stomp(mpConcurrency); err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
+		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 		c.JSON(500, RespError{Error: err})
 		return
 	}
@@ -54,5 +61,6 @@ func calculateMP(c *gin.Context) {
 	session.Save()
 
 	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
+	serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 	c.JSON(200, Segment{cac})
 }

@@ -27,6 +27,14 @@ var (
 		},
 		[]string{"method", "endpoint", "code"},
 	)
+	serviceRequestDuration = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name:       "mpserver_service_request_durations_ms",
+			Help:       "service request duration in milliseconds.",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		},
+		[]string{"endpoint"},
+	)
 )
 
 type RespError struct {
@@ -36,6 +44,7 @@ type RespError struct {
 
 func init() {
 	prometheus.MustRegister(requestTotal)
+	prometheus.MustRegister(serviceRequestDuration)
 }
 
 func main() {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"time"
 
 	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/sessions"
@@ -14,6 +15,7 @@ type MP struct {
 }
 
 func getMP(c *gin.Context) {
+	start := time.Now()
 	endpoint := "/api/v1/mp"
 	session := sessions.Default(c)
 	buildCORSHeaders(c)
@@ -23,6 +25,7 @@ func getMP(c *gin.Context) {
 	}{}
 	if err := c.BindJSON(&params); err != nil {
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
+		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 		c.JSON(500, RespError{
 			Error: errors.New("failed to unmarshall POST parameters with field `name`"),
 		})
@@ -36,6 +39,7 @@ func getMP(c *gin.Context) {
 		// matrix profile is not initialized so don't return any data back for the
 		// annotation vector
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
+		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 		c.JSON(500, RespError{
 			Error:        errors.New("matrix profile is not initialized"),
 			CacheExpired: true,
@@ -56,6 +60,7 @@ func getMP(c *gin.Context) {
 		mp.AV = matrixprofile.ClippingAV
 	default:
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
+		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 		c.JSON(500, RespError{
 			Error: errors.New("invalid annotation vector name " + avname),
 		})
@@ -69,6 +74,7 @@ func getMP(c *gin.Context) {
 	av, err := mp.GetAV()
 	if err != nil {
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
+		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 		c.JSON(500, RespError{Error: err})
 		return
 	}
@@ -76,10 +82,12 @@ func getMP(c *gin.Context) {
 	adjustedMP, err := mp.ApplyAV(av)
 	if err != nil {
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
+		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 		c.JSON(500, RespError{Error: err})
 		return
 	}
 
 	requestTotal.WithLabelValues("POST", endpoint, "200").Inc()
+	serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 	c.JSON(200, MP{AV: av, AdjustedMP: adjustedMP})
 }

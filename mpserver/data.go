@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -64,11 +65,13 @@ func smooth(data []float64, m int) []float64 {
 }
 
 func getData(c *gin.Context) {
+	start := time.Now()
 	endpoint := "/api/v1/data"
 	method := "GET"
 	data, err := fetchData()
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
+		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 		c.JSON(500, RespError{Error: err})
 		return
 	}
@@ -77,5 +80,6 @@ func getData(c *gin.Context) {
 	buildCORSHeaders(c)
 
 	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
+	serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 	c.JSON(200, data.Data)
 }

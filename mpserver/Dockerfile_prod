@@ -3,6 +3,6 @@ RUN mkdir /go/src/app
 ADD . /go/src/app/
 WORKDIR /go/src/app
 RUN go get ./...
-RUN go build -o main .
+RUN go build -o mpserver .
 EXPOSE 8081
-CMD ["/go/src/app/main"]
+CMD ["/go/src/app/mpserver"]
