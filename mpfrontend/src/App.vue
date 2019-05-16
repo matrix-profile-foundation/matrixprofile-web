@@ -51,7 +51,7 @@
             >
             </b-form-input>
             <b-input-group-append>
-              <b-btn @click="calculateMP">
+              <b-btn @click="calculateMP" :disabled="calculatingMP">
                 <template v-if="calculatingMP">
                   <b-spinner
                     small
@@ -85,7 +85,7 @@
                   <b-form-input v-model="r" type="number" placeholder="radius">
                   </b-form-input>
                 </b-input-group>
-                <b-btn size="sm" @click="getMotifs">
+                <b-btn size="sm" @click="getMotifs" :disabled="calculatingMotifs">
                   <template v-if="calculatingMotifs">
                     <b-spinner small variant="light" class="mr-1"></b-spinner>
                     Finding...
@@ -108,7 +108,7 @@
                   >
                   </b-form-input>
                 </b-input-group>
-                <b-btn size="sm" @click="getDiscords">
+                <b-btn size="sm" @click="getDiscords" :disabled="calculatingDiscords">
                   <template v-if="calculatingDiscords">
                     <b-spinner small variant="light" class="mr-1"></b-spinner>
                     Finding...
