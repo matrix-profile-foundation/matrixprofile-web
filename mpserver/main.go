@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/gob"
 	"os"
+	"time"
 
 	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/cors"
@@ -41,7 +42,7 @@ var (
 			Help:       "redis client request duration in milliseconds.",
 			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
 		},
-		[]string{"command"},
+		[]string{"command", "status"},
 	)
 )
 
@@ -118,17 +119,26 @@ func buildCORSHeaders(c *gin.Context) {
 }
 
 func fetchMPCache(session sessions.Session) interface{} {
-	timer := prometheus.NewTimer(redisClientRequestDuration.WithLabelValues("GET"))
-	defer timer.ObserveDuration()
+	start := time.Now()
 
 	v := session.Get("mp")
+	if v == nil {
+		redisClientRequestDuration.WithLabelValues("GET", "500").Observe(time.Since(start).Seconds() * 1000)
+	} else {
+		redisClientRequestDuration.WithLabelValues("GET", "200").Observe(time.Since(start).Seconds() * 1000)
+	}
 	return v
 }
 
 func storeMPCache(session sessions.Session, mp *matrixprofile.MatrixProfile) {
-	timer := prometheus.NewTimer(redisClientRequestDuration.WithLabelValues("SET"))
-	defer timer.ObserveDuration()
+	start := time.Now()
 
 	session.Set("mp", mp)
-	session.Save()
+	err := session.Save()
+
+	if err != nil {
+		redisClientRequestDuration.WithLabelValues("SET", "500").Observe(time.Since(start).Seconds() * 1000)
+	} else {
+		redisClientRequestDuration.WithLabelValues("SET", "200").Observe(time.Since(start).Seconds() * 1000)
+	}
 }
