@@ -85,7 +85,11 @@
                   <b-form-input v-model="r" type="number" placeholder="radius">
                   </b-form-input>
                 </b-input-group>
-                <b-btn size="sm" @click="getMotifs" :disabled="calculatingMotifs">
+                <b-btn
+                  size="sm"
+                  @click="getMotifs"
+                  :disabled="calculatingMotifs"
+                >
                   <template v-if="calculatingMotifs">
                     <b-spinner small variant="light" class="mr-1"></b-spinner>
                     Finding...
@@ -108,7 +112,11 @@
                   >
                   </b-form-input>
                 </b-input-group>
-                <b-btn size="sm" @click="getDiscords" :disabled="calculatingDiscords">
+                <b-btn
+                  size="sm"
+                  @click="getDiscords"
+                  :disabled="calculatingDiscords"
+                >
                   <template v-if="calculatingDiscords">
                     <b-spinner small variant="light" class="mr-1"></b-spinner>
                     Finding...
@@ -218,8 +226,10 @@ export default {
       }
     },
     getTimeSeries: function() {
+      var endpoint = process.env.VUE_APP_MPSERVER_URL + "/data";
+
       axios
-        .get(process.env.VUE_APP_MPSERVER_URL + "/data", {
+        .get(endpoint, {
           withCredentials: true
         })
         .then(
@@ -239,10 +249,12 @@ export default {
         );
     },
     calculateMP: function() {
+      var endpoint = process.env.VUE_APP_MPSERVER_URL + "/calculate";
       this.calculatingMP = true;
+
       axios
         .post(
-          process.env.VUE_APP_MPSERVER_URL + "/calculate",
+          endpoint,
           { m: this.m },
           {
             withCredentials: true,
@@ -283,9 +295,11 @@ export default {
       }
     },
     getMotifs: function() {
+      var endpoint = process.env.VUE_APP_MPSERVER_URL + "/topkmotifs";
       this.calculatingMotifs = true;
+
       axios
-        .get(process.env.VUE_APP_MPSERVER_URL + "/topkmotifs", {
+        .get(endpoint, {
           withCredentials: true,
           params: {
             k: this.kmotifs,
@@ -332,9 +346,11 @@ export default {
         );
     },
     getDiscords: function() {
+      var endpoint = process.env.VUE_APP_MPSERVER_URL + "/topkdiscords";
       this.calculatingDiscords = true;
+
       axios
-        .get(process.env.VUE_APP_MPSERVER_URL + "/topkdiscords", {
+        .get(endpoint, {
           withCredentials: true,
           params: { k: this.kdiscords }
         })
@@ -369,9 +385,11 @@ export default {
       this.avChange(this.selectedav);
     },
     avChange: function(av) {
+      var endpoint = process.env.VUE_APP_MPSERVER_URL + "/mp";
+
       axios
         .post(
-          process.env.VUE_APP_MPSERVER_URL + "/mp",
+          endpoint,
           { name: av },
           {
             withCredentials: true,
