@@ -57,7 +57,13 @@
                 @click="calculateMP"
                 :disabled="
                   calculatingMP ||
-                    (fields['input-m'] && !fields['input-m'].valid)
+                    (fields['input-m'] && !fields['input-m'].valid) ||
+                    (fields['input-kmotifs'] &&
+                      !fields['input-kmotifs'].valid) ||
+                    (fields['input-rmotifs'] &&
+                      !fields['input-rmotifs'].valid) ||
+                    (fields['input-kdiscords'] &&
+                      !fields['input-kdiscords'].valid)
                 "
               >
                 <template v-if="calculatingMP">
@@ -87,7 +93,7 @@
                       v-model="kmotifs"
                       type="number"
                       v-validate="'required|integer|min_value:1'"
-                      name="kmotifs"
+                      name="input-kmotifs"
                       placeholder="max number of motifs"
                     >
                     </b-form-input>
@@ -100,39 +106,33 @@
                     <b-form-input
                       v-model="r"
                       type="number"
-                      v-validate="'required|integer|min_value:0'"
-                      name="rmotifs"
+                      v-validate="'required|decimal|min_value:0'"
+                      name="input-rmotifs"
                       placeholder="radius"
                     >
                     </b-form-input>
                   </b-input-group>
-
-                  <template
-                    v-if="
-                      fields.kmotifs &&
-                        fields.rmotifs &&
-                        fields.kmotifs.valid &&
-                        fields.rmotifs.valid
+                  <b-btn
+                    size="sm"
+                    @click="getMotifs"
+                    :disabled="
+                      calculatingMotifs ||
+                        (fields['input-kmotifs'] &&
+                          !fields['input-kmotifs'].valid) ||
+                        (fields['input-rmotifs'] &&
+                          !fields['input-rmotifs'].valid) ||
+                        (fields['input-kdiscords'] &&
+                          !fields['input-kdiscords'].valid)
                     "
                   >
-                    <b-btn
-                      size="sm"
-                      @click="getMotifs"
-                      :disabled="calculatingMotifs"
-                    >
-                      <template v-if="calculatingMotifs">
-                        <b-spinner
-                          small
-                          variant="light"
-                          class="mr-1"
-                        ></b-spinner>
-                        Finding...
-                      </template>
-                      <template v-else>
-                        Find
-                      </template>
-                    </b-btn>
-                  </template>
+                    <template v-if="calculatingMotifs">
+                      <b-spinner small variant="light" class="mr-1"></b-spinner>
+                      Finding...
+                    </template>
+                    <template v-else>
+                      Find
+                    </template>
+                  </b-btn>
                 </b-form>
 
                 <Motifs ref="motifs" :store="store" />
@@ -150,30 +150,32 @@
                       v-model="kdiscords"
                       type="number"
                       v-validate="'required|integer|min_value:1'"
-                      name="kdiscords"
+                      name="input-kdiscords"
                       placeholder="max number of discords"
                     >
                     </b-form-input>
                   </b-input-group>
-                  <template v-if="fields.kdiscords && fields.kdiscords.valid">
-                    <b-btn
-                      size="sm"
-                      @click="getDiscords"
-                      :disabled="calculatingDiscords"
-                    >
-                      <template v-if="calculatingDiscords">
-                        <b-spinner
-                          small
-                          variant="light"
-                          class="mr-1"
-                        ></b-spinner>
-                        Finding...
-                      </template>
-                      <template v-else>
-                        Find
-                      </template>
-                    </b-btn>
-                  </template>
+                  <b-btn
+                    size="sm"
+                    @click="getDiscords"
+                    :disabled="
+                      calculatingDiscords ||
+                        (fields['input-kmotifs'] &&
+                          !fields['input-kmotifs'].valid) ||
+                        (fields['input-rmotifs'] &&
+                          !fields['input-rmotifs'].valid) ||
+                        (fields['input-kdiscords'] &&
+                          !fields['input-kdiscords'].valid)
+                    "
+                  >
+                    <template v-if="calculatingDiscords">
+                      <b-spinner small variant="light" class="mr-1"></b-spinner>
+                      Finding...
+                    </template>
+                    <template v-else>
+                      Find
+                    </template>
+                  </b-btn>
                 </b-form>
 
                 <Discords :store="store" />
@@ -188,6 +190,14 @@
                     v-model="selectedav"
                     :options="avoptions"
                     @change="avChange"
+                    :disabled="
+                      (fields['input-kmotifs'] &&
+                        !fields['input-kmotifs'].valid) ||
+                        (fields['input-rmotifs'] &&
+                          !fields['input-rmotifs'].valid) ||
+                        (fields['input-kdiscords'] &&
+                          !fields['input-kdiscords'].valid)
+                    "
                   >
                   </b-form-select>
                   <p class="text-left">
@@ -273,7 +283,12 @@ export default {
     this.getTimeSeries();
   },
   computed: {
-    ...mapFields(["input-m", "kmotifs", "rmotifs", "kdiscords"])
+    ...mapFields([
+      "input-m",
+      "input-kmotifs",
+      "input-rmotifs",
+      "input-kdiscords"
+    ])
   },
   methods: {
     checkError: function() {
@@ -378,11 +393,8 @@ export default {
                       ": ",
                       this.motifs.groups[i].MinDist.toFixed(2)
                     ),
-                    motifGroup.slice(0, Math.min(10, motifGroup.length)),
-                    this.motifs.groups[i].Idx.slice(
-                      0,
-                      Math.min(10, motifGroup.length)
-                    )
+                    motifGroup,
+                    this.motifs.groups[i].Idx
                   )
                 });
               } else {

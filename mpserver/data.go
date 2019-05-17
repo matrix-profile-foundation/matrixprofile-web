@@ -14,7 +14,7 @@ type Data struct {
 }
 
 func fetchData() (Data, error) {
-	jsonFile, err := os.Open("./penguin_data.json")
+	jsonFile, err := os.Open("data/penguin.json")
 	if err != nil {
 		return Data{}, err
 	}
@@ -29,7 +29,7 @@ func fetchData() (Data, error) {
 		return Data{}, err
 	}
 
-	data.Data = smooth(data.Data, 21)[:24*60*7]
+	data.Data = smooth(data.Data, 21)[:60*24*14]
 
 	return data, nil
 }
