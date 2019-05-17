@@ -29,7 +29,7 @@ func fetchData() (Data, error) {
 		return Data{}, err
 	}
 
-	data.Data = smooth(data.Data, 21)[:60*24*14]
+	data.Data = smooth(data.Data, 21)[:60*24*7]
 
 	return data, nil
 }
