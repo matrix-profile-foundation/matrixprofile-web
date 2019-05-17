@@ -47,11 +47,19 @@
             <b-form-input
               v-model.number="m"
               type="number"
+              v-validate="'required|integer|min_value:4'"
+              name="input-m"
               placeholder="subsequence length"
             >
             </b-form-input>
             <b-input-group-append>
-              <b-btn @click="calculateMP" :disabled="calculatingMP">
+              <b-btn
+                @click="calculateMP"
+                :disabled="
+                  calculatingMP ||
+                    (fields['input-m'] && !fields['input-m'].valid)
+                "
+              >
                 <template v-if="calculatingMP">
                   <b-spinner
                     small
@@ -68,81 +76,125 @@
           </b-input-group>
           <b-tabs>
             <b-tab title="Motifs">
-              <b-form inline>
-                <b-input-group size="sm" class="mt-1 mb-1 mr-1" prepend="top-k">
-                  <b-form-input
-                    v-model="kmotifs"
-                    type="number"
-                    placeholder="max number of motifs"
+              <template v-if="fields['input-m'] && fields['input-m'].valid">
+                <b-form inline>
+                  <b-input-group
+                    size="sm"
+                    class="mt-1 mb-1 mr-1"
+                    prepend="top-k"
                   >
-                  </b-form-input>
-                </b-input-group>
-                <b-input-group
-                  size="sm"
-                  class="mt-1 mb-1 mr-1"
-                  prepend="radius"
-                >
-                  <b-form-input v-model="r" type="number" placeholder="radius">
-                  </b-form-input>
-                </b-input-group>
-                <b-btn
-                  size="sm"
-                  @click="getMotifs"
-                  :disabled="calculatingMotifs"
-                >
-                  <template v-if="calculatingMotifs">
-                    <b-spinner small variant="light" class="mr-1"></b-spinner>
-                    Finding...
-                  </template>
-                  <template v-else>
-                    Find
-                  </template>
-                </b-btn>
-              </b-form>
+                    <b-form-input
+                      v-model="kmotifs"
+                      type="number"
+                      v-validate="'required|integer|min_value:1'"
+                      name="kmotifs"
+                      placeholder="max number of motifs"
+                    >
+                    </b-form-input>
+                  </b-input-group>
+                  <b-input-group
+                    size="sm"
+                    class="mt-1 mb-1 mr-1"
+                    prepend="radius"
+                  >
+                    <b-form-input
+                      v-model="r"
+                      type="number"
+                      v-validate="'required|integer|min_value:0'"
+                      name="rmotifs"
+                      placeholder="radius"
+                    >
+                    </b-form-input>
+                  </b-input-group>
 
-              <Motifs ref="motifs" :store="store" />
+                  <template
+                    v-if="
+                      fields.kmotifs &&
+                        fields.rmotifs &&
+                        fields.kmotifs.valid &&
+                        fields.rmotifs.valid
+                    "
+                  >
+                    <b-btn
+                      size="sm"
+                      @click="getMotifs"
+                      :disabled="calculatingMotifs"
+                    >
+                      <template v-if="calculatingMotifs">
+                        <b-spinner
+                          small
+                          variant="light"
+                          class="mr-1"
+                        ></b-spinner>
+                        Finding...
+                      </template>
+                      <template v-else>
+                        Find
+                      </template>
+                    </b-btn>
+                  </template>
+                </b-form>
+
+                <Motifs ref="motifs" :store="store" />
+              </template>
             </b-tab>
             <b-tab title="Discords">
-              <b-form inline>
-                <b-input-group size="sm" class="mt-1 mb-1 mr-1" prepend="top-k">
-                  <b-form-input
-                    v-model="kdiscords"
-                    type="number"
-                    placeholder="max number of discords"
+              <template v-if="fields['input-m'] && fields['input-m'].valid">
+                <b-form inline>
+                  <b-input-group
+                    size="sm"
+                    class="mt-1 mb-1 mr-1"
+                    prepend="top-k"
                   >
-                  </b-form-input>
-                </b-input-group>
-                <b-btn
-                  size="sm"
-                  @click="getDiscords"
-                  :disabled="calculatingDiscords"
-                >
-                  <template v-if="calculatingDiscords">
-                    <b-spinner small variant="light" class="mr-1"></b-spinner>
-                    Finding...
+                    <b-form-input
+                      v-model="kdiscords"
+                      type="number"
+                      v-validate="'required|integer|min_value:1'"
+                      name="kdiscords"
+                      placeholder="max number of discords"
+                    >
+                    </b-form-input>
+                  </b-input-group>
+                  <template v-if="fields.kdiscords && fields.kdiscords.valid">
+                    <b-btn
+                      size="sm"
+                      @click="getDiscords"
+                      :disabled="calculatingDiscords"
+                    >
+                      <template v-if="calculatingDiscords">
+                        <b-spinner
+                          small
+                          variant="light"
+                          class="mr-1"
+                        ></b-spinner>
+                        Finding...
+                      </template>
+                      <template v-else>
+                        Find
+                      </template>
+                    </b-btn>
                   </template>
-                  <template v-else>
-                    Find
-                  </template>
-                </b-btn>
-              </b-form>
+                </b-form>
 
-              <Discords :store="store" />
+                <Discords :store="store" />
+              </template>
             </b-tab>
             <b-tab title="Annotation Vectors">
-              <b-form inline>
-                <b-form-select
-                  size="sm"
-                  class="mt-1 mb-1"
-                  v-model="selectedav"
-                  :options="avoptions"
-                  @change="avChange"
-                >
-                </b-form-select>
-                <p class="text-left">
-                  {{ this.avdescription[this.selectedav] }}
-                </p>
-              </b-form>
+              <template v-if="fields['input-m'] && fields['input-m'].valid">
+                <b-form inline>
+                  <b-form-select
+                    size="sm"
+                    class="mt-1 mb-1"
+                    v-model="selectedav"
+                    :options="avoptions"
+                    @change="avChange"
+                  >
+                  </b-form-select>
+                  <p class="text-left">
+                    {{ this.avdescription[this.selectedav] }}
+                  </p>
+                </b-form>
+              </template>
             </b-tab>
           </b-tabs>
         </b-col>
@@ -159,6 +211,7 @@ import MatrixProfile from "./components/MatrixProfile.vue";
 import AnnotationVector from "./components/AnnotationVector.vue";
 import Segmentation from "./components/Segmentation.vue";
 import Octicon, { markGithub } from "octicons-vue";
+import { mapFields } from "vee-validate";
 import axios from "axios";
 
 export default {
@@ -218,6 +271,9 @@ export default {
   },
   created: function() {
     this.getTimeSeries();
+  },
+  computed: {
+    ...mapFields(["input-m", "kmotifs", "rmotifs", "kdiscords"])
   },
   methods: {
     checkError: function() {

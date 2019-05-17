@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -59,6 +60,7 @@ func topKDiscords(c *gin.Context) {
 	discord.Groups = discords
 	discord.Series = make([][]float64, len(discords))
 	for i, didx := range discord.Groups {
+		fmt.Println(didx, len(mp.A))
 		discord.Series[i], err = matrixprofile.ZNormalize(mp.A[didx : didx+mp.M])
 		if err != nil {
 			requestTotal.WithLabelValues(method, endpoint, "500").Inc()
