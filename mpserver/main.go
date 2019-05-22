@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	mpConcurrency    = 2
+	mpConcurrency    = 4
 	maxRedisBlobSize = 10 * 1024 * 1024
-	retentionPeriod  = 5 * 60
+	retentionPeriod  = 10 * 60
 	redisURL         = "localhost:6379" // override with REDIS_URL environment variable
 	port             = "8081"           // override with PORT environment variable
 
