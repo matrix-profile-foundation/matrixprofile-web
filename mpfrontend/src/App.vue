@@ -363,7 +363,10 @@ export default {
       axios
         .post(
           endpoint,
-          { m: this.m },
+          {
+            m: this.m,
+            source: this.selectedSource
+          },
           {
             withCredentials: true,
             headers: { "Content-Type": "application/x-www-form-urlencoded" }
@@ -672,7 +675,7 @@ function createChartOption(title, data, name, height) {
 }
 
 function genTSOption(data) {
-  var option = createChartOption("Time Series", data, "value", 275);
+  var option = createChartOption("", data, "value", 275);
   option.yAxis = [
     {
       title: { text: "value" }

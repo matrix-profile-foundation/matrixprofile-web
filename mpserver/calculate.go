@@ -20,7 +20,8 @@ func calculateMP(c *gin.Context) {
 	buildCORSHeaders(c)
 
 	params := struct {
-		M int `json:"m"`
+		M      int    `json:"m"`
+		Source string `json:"source"`
 	}{}
 	if err := c.BindJSON(&params); err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
@@ -29,8 +30,9 @@ func calculateMP(c *gin.Context) {
 		return
 	}
 	m := params.M
+	source := params.Source
 
-	data, err := fetchData("penguin")
+	data, err := fetchData(source)
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
