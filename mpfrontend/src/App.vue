@@ -322,6 +322,8 @@ export default {
             for (var i = 0; i < sources.length; i++) {
               this.sourceOptions.push({ value: sources[i], text: sources[i] });
             }
+
+            this.getTimeSeries(this.selectedSource);
             this.err = "";
           },
           error => {
