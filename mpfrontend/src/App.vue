@@ -31,6 +31,13 @@
     <b-container fluid>
       <b-row>
         <b-col cols="8">
+          <b-form-select
+            class="mt-2"
+            v-model="selectedSource"
+            :options="sourceOptions"
+            @change="getTimeSeries"
+          >
+          </b-form-select>
           <TimeSeries class="mt-2" ref="timeseries" :store="store" />
           <b-tabs small>
             <b-tab title="Matrix Profile">
@@ -229,6 +236,8 @@ export default {
   data() {
     return {
       markGithub: markGithub,
+      selectedSource: "",
+      sourceOptions: [],
       ts: [],
       n: 0,
       m: 30,
@@ -280,7 +289,7 @@ export default {
     Octicon
   },
   created: function() {
-    this.getTimeSeries();
+    this.getSources();
   },
   computed: {
     ...mapFields([
@@ -296,12 +305,38 @@ export default {
         this.$refs["modal-mp-error"].show();
       }
     },
-    getTimeSeries: function() {
-      var endpoint = process.env.VUE_APP_MPSERVER_URL + "/data";
+    getSources: function() {
+      var endpoint = process.env.VUE_APP_MPSERVER_URL + "/sources";
 
       axios
         .get(endpoint, {
           withCredentials: true
+        })
+        .then(
+          result => {
+            var sources = result.data;
+            if (sources.length > 0) {
+              this.selectedSource = sources[0];
+            }
+            this.sourceOptions = [];
+            for (var i = 0; i < sources.length; i++) {
+              this.sourceOptions.push({ value: sources[i], text: sources[i] });
+            }
+            this.err = "";
+          },
+          error => {
+            this.err = JSON.stringify(error.response.data.error);
+            this.checkError(this.err);
+          }
+        );
+    },
+    getTimeSeries: function(source) {
+      var endpoint = process.env.VUE_APP_MPSERVER_URL + "/data";
+
+      axios
+        .get(endpoint, {
+          withCredentials: true,
+          params: { source: source }
         })
         .then(
           result => {

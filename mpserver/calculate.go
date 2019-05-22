@@ -30,7 +30,7 @@ func calculateMP(c *gin.Context) {
 	}
 	m := params.M
 
-	data, err := fetchData()
+	data, err := fetchData("penguin")
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)

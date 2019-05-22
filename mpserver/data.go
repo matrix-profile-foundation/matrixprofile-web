@@ -4,17 +4,21 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
+var dataPath = "./data"
+
 type Data struct {
 	Data []float64 `json:"data"`
 }
 
-func fetchData() (Data, error) {
-	jsonFile, err := os.Open("data/penguin.json")
+func fetchData(filename string) (Data, error) {
+	jsonFile, err := os.Open(filepath.Join(dataPath, filename+".json"))
 	if err != nil {
 		return Data{}, err
 	}
@@ -28,8 +32,6 @@ func fetchData() (Data, error) {
 	if err := json.Unmarshal(byteValue, &data); err != nil {
 		return Data{}, err
 	}
-
-	data.Data = smooth(data.Data, 21)[:60*24*7]
 
 	return data, nil
 }
@@ -68,7 +70,8 @@ func getData(c *gin.Context) {
 	start := time.Now()
 	endpoint := "/api/v1/data"
 	method := "GET"
-	data, err := fetchData()
+
+	data, err := fetchData(c.Query("source"))
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
@@ -76,10 +79,33 @@ func getData(c *gin.Context) {
 		return
 	}
 
-	c.Header("Content-Type", "application/json")
 	buildCORSHeaders(c)
 
 	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
 	serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 	c.JSON(200, data.Data)
+}
+
+func getSources(c *gin.Context) {
+	start := time.Now()
+	endpoint := "/api/v1/sources"
+	method := "GET"
+
+	sources, err := filepath.Glob(filepath.Join(dataPath, "*.json"))
+	if err != nil {
+		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
+		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
+		c.JSON(500, RespError{Error: err})
+		return
+	}
+
+	for i := 0; i < len(sources); i++ {
+		sources[i] = strings.TrimSuffix(filepath.Base(sources[i]), ".json")
+	}
+
+	buildCORSHeaders(c)
+
+	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
+	serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
+	c.JSON(200, sources)
 }

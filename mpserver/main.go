@@ -76,6 +76,7 @@ func main() {
 	v1 := r.Group("/api/v1")
 	{
 		v1.GET("/data", getData)
+		v1.GET("/sources", getSources)
 		v1.POST("/calculate", calculateMP)
 		v1.GET("/topkmotifs", topKMotifs)
 		v1.GET("/topkdiscords", topKDiscords)
