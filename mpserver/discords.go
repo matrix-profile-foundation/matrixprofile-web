@@ -29,7 +29,7 @@ func topKDiscords(c *gin.Context) {
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		glog.Info("%v", err)
+		glog.Infof("%v", err)
 		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
@@ -40,18 +40,17 @@ func topKDiscords(c *gin.Context) {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 		err := errors.New("matrix profile is not initialized to compute discords")
-		glog.Info("%v", err)
+		glog.Infof("%v", err)
 		c.JSON(500, RespError{err.Error(), true})
 		return
-	} else {
-		mp = v.(matrixprofile.MatrixProfile)
 	}
+	mp = v.(matrixprofile.MatrixProfile)
 	discords, err := mp.TopKDiscords(k, mp.M/2)
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
 		err := errors.New("failed to compute discords")
-		glog.Info("%v", err)
+		glog.Infof("%v", err)
 		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
@@ -64,7 +63,7 @@ func topKDiscords(c *gin.Context) {
 		if err != nil {
 			requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 			serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-			glog.Info("%v", err)
+			glog.Infof("%v", err)
 			c.JSON(500, RespError{Error: err.Error()})
 			return
 		}

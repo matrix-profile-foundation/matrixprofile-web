@@ -55,9 +55,9 @@ func topKMotifs(c *gin.Context) {
 			CacheExpired: true,
 		})
 		return
-	} else {
-		mp = v.(matrixprofile.MatrixProfile)
 	}
+	mp = v.(matrixprofile.MatrixProfile)
+
 	motifGroups, err := mp.TopKMotifs(k, r)
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
