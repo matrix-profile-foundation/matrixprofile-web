@@ -8,6 +8,7 @@ import (
 	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/golang/glog"
 )
 
 type Motif struct {
@@ -26,7 +27,8 @@ func topKMotifs(c *gin.Context) {
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 
@@ -34,7 +36,8 @@ func topKMotifs(c *gin.Context) {
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 
@@ -45,8 +48,10 @@ func topKMotifs(c *gin.Context) {
 		// either the cache expired or this was called directly
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
+		err = errors.New("matrix profile is not initialized to compute motifs")
+		glog.Infof("%v", err)
 		c.JSON(500, RespError{
-			Error:        errors.New("matrix profile is not initialized to compute motifs"),
+			Error:        err.Error(),
 			CacheExpired: true,
 		})
 		return
@@ -57,7 +62,8 @@ func topKMotifs(c *gin.Context) {
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 
@@ -71,7 +77,8 @@ func topKMotifs(c *gin.Context) {
 			if err != nil {
 				requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 				serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-				c.JSON(500, RespError{Error: err})
+				glog.Infof("%v", err)
+				c.JSON(500, RespError{Error: err.Error()})
 				return
 			}
 		}

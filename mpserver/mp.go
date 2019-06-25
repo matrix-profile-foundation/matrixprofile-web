@@ -7,6 +7,7 @@ import (
 	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/golang/glog"
 )
 
 type MP struct {
@@ -26,9 +27,9 @@ func getMP(c *gin.Context) {
 	if err := c.BindJSON(&params); err != nil {
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{
-			Error: errors.New("failed to unmarshall POST parameters with field `name`"),
-		})
+		err := errors.New("failed to unmarshall POST parameters with field `name`")
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 	avname := params.Name
@@ -40,8 +41,10 @@ func getMP(c *gin.Context) {
 		// annotation vector
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
+		err := errors.New("matrix profile is not initialized")
+		glog.Infof("%v", err)
 		c.JSON(500, RespError{
-			Error:        errors.New("matrix profile is not initialized"),
+			Error:        err.Error(),
 			CacheExpired: true,
 		})
 		return
@@ -61,9 +64,9 @@ func getMP(c *gin.Context) {
 	default:
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{
-			Error: errors.New("invalid annotation vector name " + avname),
-		})
+		err := errors.New("invalid annotation vector name " + avname)
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 
@@ -74,7 +77,8 @@ func getMP(c *gin.Context) {
 	if err != nil {
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 
@@ -82,7 +86,8 @@ func getMP(c *gin.Context) {
 	if err != nil {
 		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 

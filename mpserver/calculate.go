@@ -6,6 +6,7 @@ import (
 	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/golang/glog"
 )
 
 type Segment struct {
@@ -13,6 +14,9 @@ type Segment struct {
 }
 
 func calculateMP(c *gin.Context) {
+	var err error
+	var mp *matrixprofile.MatrixProfile
+
 	start := time.Now()
 	endpoint := "/api/v1/calculate"
 	method := "POST"
@@ -20,38 +24,57 @@ func calculateMP(c *gin.Context) {
 	buildCORSHeaders(c)
 
 	params := struct {
-		M      int    `json:"m"`
-		Source string `json:"source"`
+		M       int    `json:"m"`
+		SourceA string `json:"sourceA"`
+		SourceB string `json:"sourceB"`
 	}{}
 	if err := c.BindJSON(&params); err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 	m := params.M
-	source := params.Source
+	sourceA := params.SourceA
+	sourceB := params.SourceB
 
-	data, err := fetchData(source)
+	dataA, err := fetchData(sourceA)
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 
-	mp, err := matrixprofile.New(data.Data, nil, m)
+	if sourceA != sourceB {
+		dataB, err := fetchData(sourceB)
+		if err != nil {
+			requestTotal.WithLabelValues(method, endpoint, "500").Inc()
+			serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
+			glog.Infof("%v", err)
+			c.JSON(500, RespError{Error: err.Error()})
+			return
+		}
+		mp, err = matrixprofile.New(dataA.Data, dataB.Data, m)
+	} else {
+		// self-join case
+		mp, err = matrixprofile.New(dataA.Data, nil, m)
+	}
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 
 	if err = mp.Stomp(mpConcurrency); err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 

@@ -8,6 +8,7 @@ import (
 	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/golang/glog"
 )
 
 type Discord struct {
@@ -28,7 +29,8 @@ func topKDiscords(c *gin.Context) {
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		glog.Info("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 
@@ -37,10 +39,9 @@ func topKDiscords(c *gin.Context) {
 	if v == nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{
-			errors.New("matrix profile is not initialized to compute discords"),
-			true,
-		})
+		err := errors.New("matrix profile is not initialized to compute discords")
+		glog.Info("%v", err)
+		c.JSON(500, RespError{err.Error(), true})
 		return
 	} else {
 		mp = v.(matrixprofile.MatrixProfile)
@@ -49,9 +50,9 @@ func topKDiscords(c *gin.Context) {
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{
-			Error: errors.New("failed to compute discords"),
-		})
+		err := errors.New("failed to compute discords")
+		glog.Info("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 
@@ -63,7 +64,8 @@ func topKDiscords(c *gin.Context) {
 		if err != nil {
 			requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 			serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-			c.JSON(500, RespError{Error: err})
+			glog.Info("%v", err)
+			c.JSON(500, RespError{Error: err.Error()})
 			return
 		}
 	}

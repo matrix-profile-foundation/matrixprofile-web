@@ -31,13 +31,26 @@
     <b-container fluid>
       <b-row>
         <b-col cols="8">
-          <b-form-select
-            class="mt-2"
-            v-model="selectedSource"
-            :options="sourceOptions"
-            @change="getTimeSeries"
-          >
-          </b-form-select>
+          <b-form inline>
+            <b-col cols="6">
+              <b-form-select
+                class="mt-2"
+                v-model="selectedSourceA"
+                :options="sourceOptions"
+                @change="getTimeSeriesA"
+              >
+              </b-form-select>
+            </b-col>
+            <b-col cols="6">
+              <b-form-select
+                class="mt-2"
+                v-model="selectedSourceB"
+                :options="sourceOptions"
+                @change="getTimeSeriesB"
+              >
+              </b-form-select>
+            </b-col>
+          </b-form>
           <TimeSeries class="mt-2" ref="timeseries" :store="store" />
           <b-tabs small>
             <b-tab title="Matrix Profile">
@@ -236,10 +249,13 @@ export default {
   data() {
     return {
       markGithub: markGithub,
-      selectedSource: "",
+      selectedSourceA: "",
+      selectedSourceB: "",
       sourceOptions: [],
-      ts: [],
-      n: 0,
+      tsA: [],
+      nA: 0,
+      tsB: [],
+      nB: 0,
       m: 30,
       kmotifs: 3,
       r: 2,
@@ -270,7 +286,9 @@ export default {
       err: "",
       retries: 0,
       store: {
-        tsOption: genTSOption([]),
+        selfJoin: true,
+        tsAOption: genTSOption([]),
+        tsBOption: genTSOption([]),
         annotationVectorOption: genAVOption([]),
         matrixProfileOption: genMPOption([]),
         segmentationOption: genSegOption([]),
@@ -316,14 +334,16 @@ export default {
           result => {
             var sources = result.data;
             if (sources.length > 0) {
-              this.selectedSource = sources[0];
+              this.selectedSourceA = sources[0];
+              this.selectedSourceB = sources[0];
             }
             this.sourceOptions = [];
             for (var i = 0; i < sources.length; i++) {
               this.sourceOptions.push({ value: sources[i], text: sources[i] });
             }
 
-            this.getTimeSeries(this.selectedSource);
+            this.getTimeSeriesA(this.selectedSourceA);
+            this.getTimeSeriesB(this.selectedSourceB);
             this.err = "";
           },
           error => {
@@ -332,7 +352,7 @@ export default {
           }
         );
     },
-    getTimeSeries: function(source) {
+    getTimeSeriesA: function(source) {
       var endpoint = process.env.VUE_APP_MPSERVER_URL + "/data";
 
       axios
@@ -342,11 +362,11 @@ export default {
         })
         .then(
           result => {
-            this.ts = result.data;
-            this.n = result.data.length;
+            this.tsA = result.data;
+            this.nA = result.data.length;
             var option = genTSOption(result.data);
-            option.xAxis[0].max = this.n;
-            this.store.tsOption = option;
+            option.xAxis[0].max = this.nA;
+            this.store.tsAOption = option;
 
             this.err = "";
           },
@@ -355,6 +375,33 @@ export default {
             this.checkError(this.err);
           }
         );
+
+      this.store.selfJoin = this.selectedSourceA == this.selectedSourceB;
+    },
+    getTimeSeriesB: function(source) {
+      var endpoint = process.env.VUE_APP_MPSERVER_URL + "/data";
+
+      axios
+        .get(endpoint, {
+          withCredentials: true,
+          params: { source: source }
+        })
+        .then(
+          result => {
+            this.tsB = result.data;
+            this.nB = result.data.length;
+            var option = genTSOption(result.data);
+            option.xAxis[0].max = this.nB;
+            this.store.tsBOption = option;
+
+            this.err = "";
+          },
+          error => {
+            this.err = JSON.stringify(error.response.data.error);
+            this.checkError(this.err);
+          }
+        );
+      this.store.selfJoin = this.selectedSourceA == this.selectedSourceB;
     },
     calculateMP: function() {
       var endpoint = process.env.VUE_APP_MPSERVER_URL + "/calculate";
@@ -365,7 +412,8 @@ export default {
           endpoint,
           {
             m: this.m,
-            source: this.selectedSource
+            sourceA: this.selectedSourceA,
+            sourceB: this.selectedSourceB
           },
           {
             withCredentials: true,
@@ -376,7 +424,7 @@ export default {
           result => {
             this.cac = result.data.cac;
             var option = genSegOption(this.cac);
-            option.xAxis[0].max = this.n;
+            option.xAxis[0].max = this.nB;
             this.store.segmentationOption = option;
 
             this.getAnnotationVector();
@@ -385,6 +433,7 @@ export default {
           },
           error => {
             this.calculatingMP = false;
+            console.log(error);
             this.err = JSON.stringify(error.response.data.error);
             this.checkError(this.err);
           }
@@ -507,11 +556,11 @@ export default {
         .then(
           result => {
             var avoption = genAVOption(result.data.annotation_vector);
-            avoption.xAxis[0].max = this.n;
+            avoption.xAxis[0].max = this.nB;
             this.store.annotationVectorOption = avoption;
 
             var mpoption = genMPOption(result.data.adjusted_mp);
-            mpoption.xAxis[0].max = this.n;
+            mpoption.xAxis[0].max = this.nB;
             this.store.matrixProfileOption = mpoption;
 
             this.getMotifs();
@@ -539,7 +588,7 @@ export default {
               var motifNum = e.path[3].id;
               var motifs = self.$refs.motifs.$refs;
               var series = motifs[motifNum][0].chart.series;
-              self.store.tsOption.xAxis[0].plotBands.length = 0;
+              self.store.tsAOption.xAxis[0].plotBands.length = 0;
 
               var points = {
                 name: startIdx,
@@ -556,7 +605,7 @@ export default {
 
               for (var i in series) {
                 var startIdx = series[i].name;
-                self.store.tsOption.xAxis[0].plotBands.push({
+                self.store.tsAOption.xAxis[0].plotBands.push({
                   from: startIdx,
                   to: startIdx + parseInt(self.m, 10),
                   color: "#FCFFC5"
@@ -595,9 +644,9 @@ export default {
           animation: false,
           events: {
             click: function(e) {
-              self.store.tsOption.xAxis[0].plotBands.length = 0;
+              self.store.tsAOption.xAxis[0].plotBands.length = 0;
               var startIdx = parseInt(e.point.series.userOptions.id, 10);
-              self.store.tsOption.xAxis[0].plotBands.push({
+              self.store.tsAOption.xAxis[0].plotBands.push({
                 from: startIdx,
                 to: startIdx + parseInt(self.m, 10),
                 color: LightenDarkenColor(e.point.series.color, 20)
@@ -675,7 +724,7 @@ function createChartOption(title, data, name, height) {
 }
 
 function genTSOption(data) {
-  var option = createChartOption("", data, "value", 275);
+  var option = createChartOption("", data, "value", 250);
   option.yAxis = [
     {
       title: { text: "value" }

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang/glog"
 )
 
 var dataPath = "./data"
@@ -75,7 +76,8 @@ func getData(c *gin.Context) {
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 
@@ -95,7 +97,8 @@ func getSources(c *gin.Context) {
 	if err != nil {
 		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
 		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		glog.Infof("%v", err)
+		c.JSON(500, RespError{Error: err.Error()})
 		return
 	}
 

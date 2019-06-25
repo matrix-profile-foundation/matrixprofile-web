@@ -1,6 +1,11 @@
 <template>
   <div>
-    <highcharts ref="highchart" :options="store.tsOption"></highcharts>
+    <div>
+      <highcharts ref="highchartA" :options="store.tsAOption"></highcharts>
+    </div>
+    <div v-if="!store.selfJoin">
+      <highcharts ref="highchartB" :options="store.tsBOption"></highcharts>
+    </div>
   </div>
 </template>
 

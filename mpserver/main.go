@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/gob"
+	"flag"
 	"os"
 	"time"
 
@@ -47,8 +48,8 @@ var (
 )
 
 type RespError struct {
-	Error        error `json:"error"`
-	CacheExpired bool  `json:"cache_expired"`
+	Error        string `json:"error"`
+	CacheExpired bool   `json:"cache_expired"`
 }
 
 func init() {
@@ -58,6 +59,9 @@ func init() {
 }
 
 func main() {
+	// hack so that glog doesn't spew parsing errors
+	flag.CommandLine.Parse([]string{})
+
 	r := gin.Default()
 
 	store, err := initRedis()
