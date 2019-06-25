@@ -48,9 +48,8 @@ func getMP(c *gin.Context) {
 			CacheExpired: true,
 		})
 		return
-	} else {
-		mp = v.(matrixprofile.MatrixProfile)
 	}
+	mp = v.(matrixprofile.MatrixProfile)
 
 	switch avname {
 	case "default", "":
