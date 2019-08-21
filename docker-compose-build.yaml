@@ -22,7 +22,7 @@ services:
       - GIN_MODE=release
     ports:
       - "8081:8081"
-    # volumes:
-      # - "./mpserver/data:/go/src/app/data"
+    volumes:
+      - "./mpserver/data:/go/src/app/data"
   redis:
     image: "redis:alpine"
