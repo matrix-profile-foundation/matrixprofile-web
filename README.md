@@ -14,6 +14,8 @@ make build && make deploy
 
 Go to `localhost:8080` in your browser
 
+![screenshot](https://github.com/matrix-profile-foundation/matrix-profiles/blob/master/screenshot.png)
+
 # Tear down
 ```sh
 make undeploy
