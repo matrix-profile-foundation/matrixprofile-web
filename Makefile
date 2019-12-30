@@ -13,7 +13,7 @@ usage:
 build: build-mpserver build-mpfrontend
 
 build-mpserver:
-	cd mpserver && GOOS=linux GOARCH=amd64 go build && cd ..
+	cd mpserver && GOOS=linux GOARCH=amd64 go build -o mpserver && cd ..
 
 build-mpfrontend:
 	cd mpfrontend && npm run build-dev
