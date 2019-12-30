@@ -19,8 +19,8 @@ build-mpfrontend:
 	cd mpfrontend && npm run build-dev
 
 docker-dev:
-	docker build -t aouyang1/mpserver:dev mpserver/
-	docker build -t aouyang1/mpfrontend:dev mpfrontend/
+	docker build -t $(USER)/mpserver:dev mpserver/
+	docker build -t $(USER)/mpfrontend:dev mpfrontend/
 
 docker-prod: docker-prod-mpserver docker-prod-mpfrontend
 

@@ -3,7 +3,7 @@ services:
   mpfrontend:
     depends_on:
       - mpserver
-    image: "aouyang1/mpfrontend:dev"
+    image: "${USER}/mpfrontend:dev"
     build:
       context: mpfrontend/
     ports:
@@ -13,7 +13,7 @@ services:
   mpserver:
     depends_on:
       - redis
-    image: "aouyang1/mpserver:dev"
+    image: "${USER}/mpserver:dev"
     build:
       context: mpserver/
     environment:
