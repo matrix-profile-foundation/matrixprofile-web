@@ -12,6 +12,8 @@
 make build && make deploy
 ```
 
+Go to `localhost:8080` in your browser
+
 # Tear down
 ```sh
 make undeploy
