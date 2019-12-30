@@ -25,10 +25,10 @@ docker-dev:
 docker-prod: docker-prod-mpserver docker-prod-mpfrontend
 
 docker-prod-mpserver:
-	docker build --no-cache -t aouyang1/mpserver:latest -f mpserver/Dockerfile_prod mpserver/
+	docker build --no-cache -t aouyang1/mpserver:$(TRAVIS_TAG) -f mpserver/Dockerfile_prod mpserver/
 
 docker-prod-mpfrontend:
-	docker build --no-cache -t aouyang1/mpfrontend:latest -f mpfrontend/Dockerfile_prod mpfrontend/
+	docker build --no-cache -t aouyang1/mpfrontend:$(TRAVIS_TAG) -f mpfrontend/Dockerfile_prod mpfrontend/
 
 deploy: undeploy
 	docker-compose up -d
@@ -39,7 +39,7 @@ undeploy:
 push: push-mpserver push-mpfrontend
 
 push-mpserver:
-	docker push aouyang1/mpserver:latest
+	docker push aouyang1/mpserver:$(TRAVIS_TAG)
 
 push-mpfrontend:
-	docker push aouyang1/mpfrontend:latest
+	docker push aouyang1/mpfrontend:$(TRAVIS_TAG)
