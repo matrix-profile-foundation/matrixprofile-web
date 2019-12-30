@@ -4,9 +4,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	mp "github.com/matrix-profile-foundation/go-matrixprofile"
+	"github.com/matrix-profile-foundation/go-matrixprofile/av"
 )
 
 type MP struct {
@@ -24,69 +25,61 @@ func getMP(c *gin.Context) {
 		Name string `json:"name"`
 	}{}
 	if err := c.BindJSON(&params); err != nil {
-		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{
+		respError := RespError{
 			Error: errors.New("failed to unmarshall POST parameters with field `name`"),
-		})
+		}
+		logError(respError, "POST", endpoint, start, c)
 		return
 	}
 	avname := params.Name
 
 	v := fetchMPCache(session)
-	var mp matrixprofile.MatrixProfile
+	var p mp.MatrixProfile
 	if v == nil {
 		// matrix profile is not initialized so don't return any data back for the
 		// annotation vector
-		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{
+		respErr := RespError{
 			Error:        errors.New("matrix profile is not initialized"),
 			CacheExpired: true,
-		})
+		}
+		logError(respErr, "POST", endpoint, start, c)
 		return
 	} else {
-		mp = v.(matrixprofile.MatrixProfile)
+		p = v.(mp.MatrixProfile)
 	}
 
 	switch avname {
 	case "default", "":
-		mp.AV = matrixprofile.DefaultAV
+		p.AV = av.Default
 	case "complexity":
-		mp.AV = matrixprofile.ComplexityAV
+		p.AV = av.Complexity
 	case "meanstd":
-		mp.AV = matrixprofile.MeanStdAV
+		p.AV = av.MeanStd
 	case "clipping":
-		mp.AV = matrixprofile.ClippingAV
+		p.AV = av.Clipping
 	default:
-		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{
+		respErr := RespError{
 			Error: errors.New("invalid annotation vector name " + avname),
-		})
+		}
+		logError(respErr, "POST", endpoint, start, c)
 		return
 	}
 
 	// cache matrix profile for current session
-	storeMPCache(session, &mp)
+	storeMPCache(session, &p)
 
-	av, err := mp.GetAV()
+	adjustedMP, err := p.ApplyAV()
 	if err != nil {
-		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		logError(RespError{Error: err}, "POST", endpoint, start, c)
 		return
 	}
 
-	adjustedMP, err := mp.ApplyAV(av)
+	avec, err := av.Create(p.AV, p.A, p.M)
 	if err != nil {
-		requestTotal.WithLabelValues("POST", endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		logError(RespError{Error: err}, "POST", endpoint, start, c)
 		return
 	}
-
 	requestTotal.WithLabelValues("POST", endpoint, "200").Inc()
 	serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-	c.JSON(200, MP{AV: av, AdjustedMP: adjustedMP})
+	c.JSON(200, MP{AV: avec, AdjustedMP: adjustedMP})
 }

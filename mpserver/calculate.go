@@ -3,9 +3,9 @@ package main
 import (
 	"time"
 
-	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	mp "github.com/matrix-profile-foundation/go-matrixprofile"
 )
 
 type Segment struct {
@@ -24,9 +24,7 @@ func calculateMP(c *gin.Context) {
 		Source string `json:"source"`
 	}{}
 	if err := c.BindJSON(&params); err != nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		logError(RespError{Error: err}, method, endpoint, start, c)
 		return
 	}
 	m := params.M
@@ -34,32 +32,26 @@ func calculateMP(c *gin.Context) {
 
 	data, err := fetchData(source)
 	if err != nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		logError(RespError{Error: err}, method, endpoint, start, c)
 		return
 	}
 
-	mp, err := matrixprofile.New(data.Data, nil, m)
+	p, err := mp.New(data.Data, nil, m)
 	if err != nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		logError(RespError{Error: err}, method, endpoint, start, c)
 		return
 	}
 
-	if err = mp.Stomp(mpConcurrency); err != nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+	if err = p.Compute(mp.NewComputeOpts()); err != nil {
+		logError(RespError{Error: err}, method, endpoint, start, c)
 		return
 	}
 
 	// compute the corrected arc curve based on the current index matrix profile
-	_, _, cac := mp.Segment()
+	_, _, cac := p.DiscoverSegments()
 
 	// cache matrix profile for current session
-	storeMPCache(session, mp)
+	storeMPCache(session, p)
 
 	requestTotal.WithLabelValues(method, endpoint, "200").Inc()
 	serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)

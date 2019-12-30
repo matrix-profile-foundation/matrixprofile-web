@@ -5,14 +5,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	mp "github.com/matrix-profile-foundation/go-matrixprofile"
+	"github.com/matrix-profile-foundation/go-matrixprofile/util"
 )
 
 type Motif struct {
-	Groups []matrixprofile.MotifGroup `json:"groups"`
-	Series [][][]float64              `json:"series"`
+	Groups []mp.MotifGroup `json:"groups"`
+	Series [][][]float64   `json:"series"`
 }
 
 func topKMotifs(c *gin.Context) {
@@ -24,40 +25,33 @@ func topKMotifs(c *gin.Context) {
 
 	k, err := strconv.Atoi(c.Query("k"))
 	if err != nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		logError(RespError{Error: err}, method, endpoint, start, c)
 		return
 	}
 
 	r, err := strconv.ParseFloat(c.Query("r"), 64)
 	if err != nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		logError(RespError{Error: err}, method, endpoint, start, c)
 		return
 	}
 
 	v := fetchMPCache(session)
 
-	var mp matrixprofile.MatrixProfile
+	var p mp.MatrixProfile
 	if v == nil {
 		// either the cache expired or this was called directly
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{
+		respError := RespError{
 			Error:        errors.New("matrix profile is not initialized to compute motifs"),
 			CacheExpired: true,
-		})
+		}
+		logError(respError, method, endpoint, start, c)
 		return
 	} else {
-		mp = v.(matrixprofile.MatrixProfile)
+		p = v.(mp.MatrixProfile)
 	}
-	motifGroups, err := mp.TopKMotifs(k, r)
+	motifGroups, err := p.DiscoverMotifs(k, r)
 	if err != nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		logError(RespError{Error: err}, method, endpoint, start, c)
 		return
 	}
 
@@ -67,11 +61,9 @@ func topKMotifs(c *gin.Context) {
 	for i, g := range motif.Groups {
 		motif.Series[i] = make([][]float64, len(g.Idx))
 		for j, midx := range g.Idx {
-			motif.Series[i][j], err = matrixprofile.ZNormalize(mp.A[midx : midx+mp.M])
+			motif.Series[i][j], err = util.ZNormalize(p.A[midx : midx+p.M])
 			if err != nil {
-				requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-				serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-				c.JSON(500, RespError{Error: err})
+				logError(RespError{Error: err}, method, endpoint, start, c)
 				return
 			}
 		}

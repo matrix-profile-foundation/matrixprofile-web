@@ -5,11 +5,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
+	mp "github.com/matrix-profile-foundation/go-matrixprofile"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -69,8 +69,8 @@ func main() {
 	r.Use(cors.Default())
 
 	gob.RegisterName(
-		"github.com/aouyang1/go-matrixprofile/matrixprofile.MatrixProfile",
-		matrixprofile.MatrixProfile{},
+		"github.com/matrix-profile-foundation/go-matrixprofile/mp.MatrixProfile",
+		mp.MatrixProfile{},
 	)
 
 	v1 := r.Group("/api/v1")
@@ -131,10 +131,10 @@ func fetchMPCache(session sessions.Session) interface{} {
 	return v
 }
 
-func storeMPCache(session sessions.Session, mp *matrixprofile.MatrixProfile) {
+func storeMPCache(session sessions.Session, p *mp.MatrixProfile) {
 	start := time.Now()
 
-	session.Set("mp", mp)
+	session.Set("mp", p)
 	err := session.Save()
 
 	if err != nil {
@@ -142,4 +142,10 @@ func storeMPCache(session sessions.Session, mp *matrixprofile.MatrixProfile) {
 	} else {
 		redisClientRequestDuration.WithLabelValues("SET", "200").Observe(time.Since(start).Seconds() * 1000)
 	}
+}
+
+func logError(respErr RespError, method, endpoint string, start time.Time, c *gin.Context) {
+	requestTotal.WithLabelValues(method, endpoint, "500").Inc()
+	serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
+	c.JSON(500, respErr)
 }

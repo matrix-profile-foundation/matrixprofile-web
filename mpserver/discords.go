@@ -5,9 +5,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/aouyang1/go-matrixprofile/matrixprofile"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	mp "github.com/matrix-profile-foundation/go-matrixprofile"
+	"github.com/matrix-profile-foundation/go-matrixprofile/util"
 )
 
 type Discord struct {
@@ -26,32 +27,28 @@ func topKDiscords(c *gin.Context) {
 
 	k, err := strconv.Atoi(kstr)
 	if err != nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		logError(RespError{Error: err}, method, endpoint, start, c)
 		return
 	}
 
 	v := fetchMPCache(session)
-	var mp matrixprofile.MatrixProfile
+	var p mp.MatrixProfile
 	if v == nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{
+		respError := RespError{
 			errors.New("matrix profile is not initialized to compute discords"),
 			true,
-		})
+		}
+		logError(respError, method, endpoint, start, c)
 		return
 	} else {
-		mp = v.(matrixprofile.MatrixProfile)
+		p = v.(mp.MatrixProfile)
 	}
-	discords, err := mp.TopKDiscords(k, mp.M/2)
+	discords, err := p.DiscoverDiscords(k, p.M/2)
 	if err != nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{
+		respError := RespError{
 			Error: errors.New("failed to compute discords"),
-		})
+		}
+		logError(respError, method, endpoint, start, c)
 		return
 	}
 
@@ -59,11 +56,9 @@ func topKDiscords(c *gin.Context) {
 	discord.Groups = discords
 	discord.Series = make([][]float64, len(discords))
 	for i, didx := range discord.Groups {
-		discord.Series[i], err = matrixprofile.ZNormalize(mp.A[didx : didx+mp.M])
+		discord.Series[i], err = util.ZNormalize(p.A[didx : didx+p.M])
 		if err != nil {
-			requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-			serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-			c.JSON(500, RespError{Error: err})
+			logError(RespError{Error: err}, method, endpoint, start, c)
 			return
 		}
 	}

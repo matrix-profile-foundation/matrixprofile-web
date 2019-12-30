@@ -73,9 +73,7 @@ func getData(c *gin.Context) {
 
 	data, err := fetchData(c.Query("source"))
 	if err != nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		logError(RespError{Error: err}, method, endpoint, start, c)
 		return
 	}
 
@@ -93,9 +91,7 @@ func getSources(c *gin.Context) {
 
 	sources, err := filepath.Glob(filepath.Join(dataPath, "*.json"))
 	if err != nil {
-		requestTotal.WithLabelValues(method, endpoint, "500").Inc()
-		serviceRequestDuration.WithLabelValues(endpoint).Observe(time.Since(start).Seconds() * 1000)
-		c.JSON(500, RespError{Error: err})
+		logError(RespError{Error: err}, method, endpoint, start, c)
 		return
 	}
 
