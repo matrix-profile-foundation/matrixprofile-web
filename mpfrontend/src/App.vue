@@ -32,7 +32,8 @@
       <b-row>
         <b-col cols="8">
           <b-form-select
-            class="mt-2"
+            class="mt-1"
+            size="sm"
             v-model="selectedSource"
             :options="sourceOptions"
             @change="getTimeSeries"
@@ -50,7 +51,7 @@
           </b-tabs>
         </b-col>
         <b-col cols="4">
-          <b-input-group prepend="m" class="mb-2 mt-2">
+          <b-input-group prepend="m" class="mb-1 mt-1" size="sm">
             <b-form-input
               v-model.number="m"
               type="number"
@@ -87,7 +88,7 @@
               </b-btn>
             </b-input-group-append>
           </b-input-group>
-          <b-tabs>
+          <b-tabs small>
             <b-tab title="Motifs">
               <template v-if="fields['input-m'] && fields['input-m'].valid">
                 <b-form inline>
@@ -577,10 +578,22 @@ export default {
           }
         },
         tooltip: { enabled: false },
-        title: { text: title },
-        xAxis: [{ labels: { enabled: false } }],
+        title: {
+          text: title,
+          style: { fontSize: "12px" },
+          align: "right",
+          margin: 1
+        },
+        xAxis: [
+          {
+            tickPosition: "inside",
+            labels: { enabled: false }
+          }
+        ],
         yAxis: [
           {
+            gridLineWidth: 0,
+            minorGridLineWidth: 0,
             title: "",
             labels: { enabled: false }
           }
@@ -646,7 +659,10 @@ export default {
 function createChartOption(title, data, name, height) {
   var option = {
     chart: { height: height, zoomType: "x", animation: false },
-    title: { text: title },
+    title: {
+      text: title,
+      style: { fontSize: "12px" }
+    },
     plotOptions: {
       stickyTracking: false,
       series: {
@@ -675,7 +691,7 @@ function createChartOption(title, data, name, height) {
 }
 
 function genTSOption(data) {
-  var option = createChartOption("", data, "value", 275);
+  var option = createChartOption("", data, "value", 250);
   option.yAxis = [
     {
       title: { text: "value" }
@@ -695,20 +711,18 @@ function genAVOption(data) {
       min: 0.0
     }
   ];
-  option.title.style = { fontSize: "12px" };
 
   return option;
 }
 
 function genMPOption(data) {
-  var option = createChartOption("Matrix Profile", data, "distance", 250);
+  var option = createChartOption("Matrix Profile", data, "distance", 225);
   option.series[0].color = "#000066";
   option.yAxis = [
     {
       title: { text: "distance" }
     }
   ];
-  option.title.style = { fontSize: "12px" };
 
   return option;
 }
