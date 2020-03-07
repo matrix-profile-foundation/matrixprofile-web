@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/matrix-profile-foundation/matrix-profiles.svg?branch=master)](https://travis-ci.com/matrix-profile-foundation/matrixprofile-web)
+[![Build Status](https://travis-ci.com/matrix-profile-foundation/matrixprofile-web.svg?branch=master)](https://travis-ci.com/matrix-profile-foundation/matrixprofile-web)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 # Requirements
